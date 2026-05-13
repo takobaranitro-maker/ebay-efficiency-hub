@@ -1,2231 +1,247 @@
 <!DOCTYPE html>
-<!-- saved from url=(0059)https://tomomist12-sketch.github.io/ebay-profit-calculator/ -->
-<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>eBayリサーチツール</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#f5f5f7;--card:#fff;--border:#e5e5e5;
-  --primary:#3b82f6;--primary-light:#eff6ff;
-  --green:#16a34a;--green-bg:#dcfce7;
-  --red:#dc2626;--red-bg:#fee2e2;
-  --text:#1e293b;--text2:#475569;--text3:#94a3b8;
-  --sp:#f97316;--sp-bg:#fff7ed;--sp-border:#fdba74;
-  --shadow:0 1px 3px rgba(0,0,0,.06);
-  --shadow2:0 4px 12px rgba(0,0,0,.08);
-  --radius:12px;
-}
-body{font-family:system-ui,-apple-system,"Segoe UI","Hiragino Sans",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding:16px 20px;margin:0 auto;max-width:1400px}
-h1{font-size:1.3rem;text-align:center;padding:8px 0 2px;font-weight:700}
-.subtitle{text-align:center;font-size:.82rem;color:var(--text3);margin-bottom:12px}
-
-/* ===== Section Card ===== */
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:16px}
-.card h2{font-size:14px;font-weight:500;color:#666;margin:0 0 12px;padding:0;border:none;display:flex;align-items:center;gap:6px}
-.card h2 .icon{font-size:1rem}
-
-/* ===== 2-Column Layout ===== */
-.main-layout{display:grid;grid-template-columns:360px 1fr;gap:24px;align-items:start}
-.left-column{display:flex;flex-direction:column;gap:16px;position:sticky;top:16px}
-.left-column .card{margin-bottom:0}
-.right-column{min-width:0}
-
-/* ===== Profit Summary ===== */
-.profit-summary{display:flex;align-items:center;gap:16px;background:#2563eb;border:none;border-radius:12px;padding:10px 20px;margin-bottom:20px}
-.profit-summary-item{display:flex;align-items:baseline;gap:8px;flex:1}
-.profit-summary-item .p-label{font-size:13px;color:#bfdbfe;white-space:nowrap}
-.profit-summary-item .p-val{font-size:18px;font-weight:700;font-family:"SF Mono",Consolas,monospace;color:#fff;white-space:nowrap}
-.profit-summary-item .p-sub{display:none}
-.profit-summary.negative{background:#dc2626}
-.profit-summary.negative .p-label{color:#fecaca}
-.profit-summary.negative .p-val{color:#fff}
-.profit-summary.negative .profit-summary-divider{background:#f87171}
-.profit-summary-divider{width:1px;height:20px;background:#60a5fa;flex-shrink:0}
-
-/* ===== Fee Detail Section ===== */
-.fee-detail-section{margin-bottom:16px}
-
-.field{display:flex;flex-direction:column;gap:2px}
-.field label{font-size:.8rem;color:var(--text2);font-weight:600;white-space:nowrap}
-.field input{height:36px;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.95rem;width:100%;transition:border-color .15s;background:#fafafa}
-.field input:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 2px var(--primary-light)}
-.field input.highlight{background:#fffbeb;border-color:#f59e0b}
-.field .unit{font-size:.7rem;color:var(--text3)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
-
-.fee-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:.85rem}
-.fee-row .fee-label{color:var(--text2)}
-.fee-row .fee-val{font-weight:600;font-family:"SF Mono",Consolas,monospace}
-.fee-total{border-top:1.5px solid var(--border);margin-top:4px;padding-top:5px;font-weight:700;font-size:.9rem}
-.divider{border:none;border-top:1px dashed var(--border);margin:5px 0}
-
-.toggle-btn{display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:.78rem;cursor:pointer;color:var(--text3);transition:all .15s}
-.toggle-btn:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
-.toggle-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-.settings-content{display:none;margin-top:8px}
-.settings-content.show{display:block}
-.note{font-size:.72rem;color:var(--text3);margin-top:5px;padding:5px 8px;background:#f8fafc;border-radius:6px;line-height:1.4}
-
-/* ===== Group Section ===== */
-.group-section{margin-bottom:16px}
-.group-header{display:flex;align-items:center;gap:8px;margin:16px 0 4px;font-size:12px;color:#888;background:none;border:none;padding:0}
-.group-header .g-label{white-space:nowrap;color:#888;font-size:12px;font-weight:500}
-.group-header .g-note{font-size:.72rem;font-weight:400;color:#aaa;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-.group-grid{display:grid;grid-template-columns:1fr;gap:8px}
-
-/* ===== Method Card ===== */
-.method-row{display:grid;grid-template-columns:1fr auto;gap:0;border-radius:var(--radius);padding:14px 16px;border:1px solid var(--border);background:#fff;align-items:center;position:relative}
-.method-row.usable{background:#fafcff;border:2px solid #3b82f6;border-radius:var(--radius)}
-.method-row.dimmed{opacity:.4}
-.method-row .mr-left{display:flex;flex-direction:column;gap:3px;min-width:0}
-.method-row .mr-name{font-size:.95rem;font-weight:600}
-.method-row .mr-sub{font-size:.75rem;color:var(--text3);line-height:1.4}
-.method-row .mr-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-.method-row .mr-right{display:grid;grid-template-columns:auto auto;gap:2px 12px;font-size:.9rem;text-align:right;white-space:nowrap;align-content:center}
-.method-row .mr-right .lbl{color:var(--text3);text-align:left;font-size:12px}
-.method-row .mr-right .val{font-weight:600;font-family:"SF Mono",Consolas,monospace}
-.method-row .mr-right .val-cost{font-size:1.15rem;font-weight:700}
-.method-row .mr-right .val-profit{color:#0F6E56}
-.method-row .mr-right .val-refund{color:#0F6E56}
-.method-row .mr-right .val-neg{color:#991b1b}
-.method-row .mr-na{font-size:.85rem;color:var(--text3)}
-
-/* ===== Tags ===== */
-.method-tag{font-size:11px;padding:2px 10px;border-radius:8px;display:inline-block}
-.tag-ok{background:#dcfce7;color:#166534}
-.tag-ddp{background:#eff6ff;color:#1e40af}
-.tag-recommend{background:#eff6ff;color:#1d4ed8}
-.tag-fast{background:#f5f5f4;color:#57534e}
-.tag-limit{background:#fef3c7;color:#92400e}
-.tag-compare{background:#f5f5f4;color:#57534e}
-.tag-ng{background:#fee2e2;color:#991b1b}
-
-/* Fee detail popup */
-.fee-detail-btn{font-size:.6rem;padding:1px 5px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;cursor:pointer;color:var(--text3);vertical-align:middle;margin-left:2px;line-height:1.2}
-.fee-detail-btn:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
-.fee-popup{position:absolute;top:100%;right:0;z-index:100;background:#fff;border:1.5px solid var(--primary);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:10px 14px;min-width:240px;margin-top:4px}
-.fp-header{font-size:.82rem;font-weight:700;color:var(--primary);border-bottom:2px solid var(--primary);padding-bottom:5px;margin-bottom:6px}
-.fp-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:.8rem;gap:12px}
-.fp-name{color:var(--text2);flex:1;min-width:0}
-.fp-val{font-weight:600;font-family:"SF Mono",Consolas,monospace;white-space:nowrap}
-.fp-total{border-top:1.5px solid var(--border);margin-top:4px;padding-top:5px;font-weight:700;font-size:.82rem}
-
-.group-section.collapsed .group-grid{display:none}
-.group-toggle{font-size:.72rem;padding:3px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;color:var(--text3);margin-left:auto}
-.group-toggle:hover{background:var(--primary-light);color:var(--primary);border-color:var(--primary)}
-.unavail-note{font-size:.78rem;color:#991b1b;padding:4px 12px;margin-bottom:6px}
-
-.mode-bar{display:flex;gap:6px;margin-bottom:10px}
-.mode-btn{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text3);text-align:center;transition:all .15s}
-.mode-btn:hover{border-color:var(--primary);color:var(--primary)}
-.mode-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-.pricing-info{font-size:.78rem;color:var(--text2);padding:6px 8px;background:#f8fafc;border-radius:6px;margin-top:4px;line-height:1.5}
-.pricing-info strong{color:var(--text);font-family:"SF Mono",Consolas,monospace}
-
-/* ===== Shopping Search Bar ===== */
-.shop-search-bar{background:var(--card);border-radius:8px;box-shadow:var(--shadow);padding:6px 12px;margin-bottom:10px}
-.shop-search-top{display:flex;align-items:center;gap:8px}
-.shop-search-top input[type="text"]{flex:1;border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:.9rem;min-width:0}
-.shop-search-top input[type="text"]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-light)}
-.shop-search-btn{font-size:.78rem;padding:5px 14px;border:1px solid var(--primary);border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-weight:600;white-space:nowrap}
-.shop-search-btn:hover{background:#2563eb}
-.shop-sites{display:flex;flex-wrap:wrap;gap:2px 6px;margin-top:4px}
-.shop-sites label{font-size:.72rem;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:2px;padding:1px 4px;border-radius:4px;transition:background .1s;white-space:nowrap;user-select:none}
-.shop-sites label:hover{background:var(--primary-light)}
-.shop-sites input[type="checkbox"]{width:12px;height:12px;margin:0;accent-color:var(--primary)}
-.shop-toggle{font-size:.7rem;color:var(--text3);cursor:pointer;border:none;background:none;padding:0;text-decoration:underline}
-.shop-toggle:hover{color:var(--primary)}
-
-</style>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eBayリサーチツール</title>
+  <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
 
 <h1>eBayリサーチツール</h1>
 
-<div class="tool-bar" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
-  <!-- 1. キーワードガチャ -->
-  <div style="background:var(--card);border-radius:8px;box-shadow:var(--shadow);padding:8px 12px;border-top:3px solid var(--primary)">
-    <div style="font-size:.72rem;margin-bottom:4px"><span style="font-weight:700;color:var(--primary)">🎲 ランダムキーワード生成</span> <span style="color:var(--text3)">— キーワードを押すとコピーできます</span></div>
-    <div id="kwResult" style="font-size:.95rem;font-weight:700;color:var(--primary);font-family:&#39;SF Mono&#39;,Consolas,monospace;min-height:28px;line-height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px"><span style="background:var(--primary-light);padding:2px 8px;border-radius:4px;margin-right:4px;display:inline-block;cursor:pointer" onclick="copyOneKw(this)" title="クリックでコピー">oil paint</span><span style="background:var(--primary-light);padding:2px 8px;border-radius:4px;margin-right:4px;display:inline-block;cursor:pointer" onclick="copyOneKw(this)" title="クリックでコピー">unused</span></div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <select id="kwCount" style="font-size:.75rem;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:#fafafa;color:var(--text2)">
-        <option value="1">1語</option><option value="2" selected="">2語</option><option value="3">3語</option><option value="5">5語</option>
+<div class="tool-bar">
+  <div class="tool-card tool-card-primary">
+    <div class="tool-header">
+      <span class="tool-title-primary">🎲 ランダムキーワード生成</span> 
+      <span class="tool-desc">— キーワードを押すとコピーできます</span>
+    </div>
+    <div id="kwResult" class="kw-result"></div>
+    <div class="l-flex-align-center">
+      <select id="kwCount" class="kw-select">
+        <option value="1">1語</option><option value="2" selected>2語</option><option value="3">3語</option><option value="5">5語</option>
       </select>
-      <button onclick="rollKw()" style="font-size:.75rem;padding:4px 12px;border:1.5px solid var(--primary);border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-weight:600;white-space:nowrap">ガチャ</button>
+      <button id="btnRollKw" class="btn-primary-small">ガチャ</button>
     </div>
   </div>
-  <!-- 2. eBay販売履歴 -->
-  <a href="https://www.ebay.com/sh/research?marketplace=EBAY-US&amp;tabName=SOLD" target="_blank" style="background: var(--card); border-radius: 8px; box-shadow: var(--shadow); padding: 8px 12px; border-top: 3px solid var(--green); text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: 0.15s;" onmouseover="this.style.background=&#39;var(--green-bg)&#39;" onmouseout="this.style.background=&#39;var(--card)&#39;">
-    <div style="font-size:.72rem;font-weight:700;color:var(--green)">📊 eBay販売履歴</div>
-    <div style="font-size:1.3rem;font-weight:700">Research Products</div>
-    <div style="font-size:.68rem;color:var(--text3)">90日間で2個以上売れている商品をピックアップ</div>
+
+  <a href="https://www.ebay.com/sh/research?marketplace=EBAY-US&tabName=SOLD" target="_blank" class="tool-card-green">
+    <div class="tool-title-green">📊 eBay販売履歴</div>
+    <div class="tool-big-title">Research Products</div>
+    <div class="tool-sub-desc">90日間で2個以上売れている商品をピックアップ</div>
   </a>
-  <!-- 3. ショッピング一括検索 -->
-  <div style="background:var(--card);border-radius:8px;box-shadow:var(--shadow);padding:8px 12px;border-top:3px solid var(--sp)">
-    <div style="font-size:.72rem;margin-bottom:4px"><span style="font-weight:700;color:var(--sp)">🔍 ショッピング一括検索</span> <span style="color:var(--text3)">— 国内の最安値を検索</span></div>
-    <div style="display:flex;gap:4px;margin-bottom:4px">
-      <input type="text" id="shopQuery" placeholder="キーワード..." style="flex:1;border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-size:.82rem;min-width:0" onkeydown="if(event.key===&#39;Enter&#39;)shopSearch()">
-      <button class="shop-search-btn" onclick="shopSearch()" style="font-size:.72rem;padding:4px 10px">検索</button>
+
+  <div class="tool-card tool-card-sp">
+    <div class="tool-header">
+      <span class="tool-title-sp">🔍 ショッピング一括検索</span> 
+      <span class="tool-desc">— 国内の最安値を検索</span>
     </div>
-    <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
-      <button class="shop-toggle" onclick="toggleShopAll(true)">全選択</button>
-      <button class="shop-toggle" onclick="toggleShopAll(false)">全解除</button>
+    <div class="l-flex-gap4 u-mb-4">
+      <input type="text" id="shopQuery" class="shop-input" placeholder="キーワード...">
+      <button id="btnShopSearch" class="shop-search-btn">検索</button>
+    </div>
+    <div class="l-flex-align-center-gap4 u-mb-2">
+      <button id="btnShopAll" class="shop-toggle">全選択</button>
+      <button id="btnShopClear" class="shop-toggle">全解除</button>
     </div>
     <div class="shop-sites" id="shopSites"></div>
   </div>
 </div>
 
-<!-- ===== 2カラムレイアウト ===== -->
 <div class="main-layout">
-<div class="left-column">
+  <div class="left-column">
+    
+    <div class="card">
+      <h2><span class="icon">📦</span> 商品情報</h2>
+      <div class="mode-bar">
+        <button class="mode-btn" id="modeUs">🇺🇸 アメリカ向け</button>
+        <button class="mode-btn active" id="modeOther">🌍 アメリカ以外</button>
+      </div>
+      <div class="grid2 u-mb-6">
+        <div class="field">
+          <label>仕入額 <span class="unit">(¥・税込)</span></label>
+          <input type="text" inputmode="decimal" id="purchasePrice" value="0" class="highlight">
+        </div>
+        <div class="field">
+          <label>売値 <span class="unit">($)※競合最安値</span></label>
+          <input type="text" inputmode="decimal" id="sellingPrice" value="0" class="highlight">
+        </div>
+      </div>
+      
+      <div id="usSection" class="u-mb-6 u-hidden">
+        <div id="compShippingRow" class="l-flex-align-end u-mb-6">
+          <div class="field u-w-140">
+            <label>競合送料</label>
+            <input type="text" inputmode="decimal" id="compShipping" value="0" class="highlight">
+          </div>
+          <div class="l-flex-gap2 u-mb-2">
+            <button class="mode-btn mode-btn-small" id="compCurrUsd">$</button>
+            <button class="mode-btn mode-btn-small active" id="compCurrJpy">¥</button>
+          </div>
+        </div>
+        <div class="l-flex-gap6">
+          <div class="price-box-primary">
+            <div class="price-box-label-primary">商品価格</div>
+            <div id="listPrice" class="price-box-val-primary">$0.00</div>
+          </div>
+          <div class="price-box-warn">
+            <div class="price-box-label-warn">🇺🇸送料（関税分）</div>
+            <div id="listShipping" class="price-box-val-warn">$0.00</div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="otherSection">
+        <div class="l-flex-align-end u-mb-6">
+          <div class="field u-w-100">
+            <label>🇺🇸送料 <span class="unit">(%)</span></label>
+            <input type="text" inputmode="decimal" id="usShippingPct" value="20" class="highlight">
+          </div>
+          <div class="price-box-warn-min">
+            <div class="price-box-label-warn">🇺🇸送料参考額</div>
+            <div id="usShippingRef" class="price-box-val-warn">-</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid4">
+        <div class="field"><label>実重量 <span class="unit">(kg)</span></label><input type="text" inputmode="decimal" id="weight" value="0.5" class="highlight"></div>
+        <div class="field"><label>縦 <span class="unit">(cm)</span></label><input type="text" inputmode="decimal" id="length" value="10" class="highlight"></div>
+        <div class="field"><label>横 <span class="unit">(cm)</span></label><input type="text" inputmode="decimal" id="width" value="10" class="highlight"></div>
+        <div class="field"><label>高さ <span class="unit">(cm)</span></label><input type="text" inputmode="decimal" id="height" value="5" class="highlight"></div>
+      </div>
+      <div class="l-flex-align-center-gap12 vol-weight-info u-mt-4">
+        <span>体積重量(÷5000): <strong id="volWeight" class="text2-strong">0.000 kg</strong></span>
+        <span>Economy(÷8000): <strong id="volWeightEco" class="text2-strong">0.000 kg</strong></span>
+      </div>
+    </div>
 
-  <!-- 商品情報 -->
-  <div class="card">
-    <h2><span class="icon">📦</span> 商品情報</h2>
-    <div class="mode-bar">
-      <button class="mode-btn" id="modeUs" onclick="setPricingMode(&#39;us&#39;)">🇺🇸 アメリカ向け</button>
-      <button class="mode-btn active" id="modeOther" onclick="setPricingMode(&#39;other&#39;)">🌍 アメリカ以外</button>
-    </div>
-    <div class="grid2" style="margin-bottom:6px">
-      <div class="field">
-        <label>仕入額 <span class="unit">(¥・税込)</span></label>
-        <input type="text" inputmode="decimal" id="purchasePrice" value="0" class="highlight">
+    <div class="card">
+      <h2><span class="icon">⚙️</span> 手数料・レート</h2>
+      <div class="mode-bar u-mb-2">
+        <button class="mode-btn active" id="planNoStore">ストアなし / Starter</button>
+        <button class="mode-btn" id="planStore">Basic以上</button>
       </div>
-      <div class="field">
-        <label>売値 <span class="unit">($)※競合最安値</span></label>
-        <input type="text" inputmode="decimal" id="sellingPrice" value="0" class="highlight">
-      </div>
-    </div>
-    <!-- 🇺🇸 アメリカ向け -->
-    <div id="usSection" style="margin-bottom: 6px; display: none;">
-      <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:6px" id="compShippingRow">
-        <div class="field" style="width:140px">
-          <label>競合送料</label>
-          <input type="text" inputmode="decimal" id="compShipping" value="0" class="highlight">
+      <div class="plan-note">eBayストア契約の有無で手数料率が異なります</div>
+      <div class="l-flex-align-end-gap8 u-mb-4">
+        <div class="field u-w-110">
+          <label>カテゴリNo.</label>
+          <input type="number" id="categoryNo" value="20561" placeholder="例: 20561" class="highlight">
         </div>
-        <div style="display:flex;gap:2px;margin-bottom:1px">
-          <button class="mode-btn" id="compCurrUsd" onclick="setCompShippingCurrency(&#39;usd&#39;)" style="padding:4px 10px;font-size:.78rem;min-width:32px">$</button>
-          <button class="mode-btn active" id="compCurrJpy" onclick="setCompShippingCurrency(&#39;jpy&#39;)" style="padding:4px 10px;font-size:.78rem;min-width:32px">¥</button>
+        <div class="field u-flex-1">
+          <label>カテゴリ名</label>
+          <div id="categoryName" class="cat-name-display">-</div>
         </div>
       </div>
-      <div style="display:flex;gap:6px">
-        <div style="flex:1;padding:8px 10px;border-radius:6px;background:var(--primary-light);border:1.5px solid var(--primary);text-align:center">
-          <div style="font-size:.68rem;color:var(--primary);font-weight:600">商品価格</div>
-          <div id="listPrice" style="font-size:1.1rem;font-weight:700;color:var(--primary);font-family:&#39;SF Mono&#39;,Consolas,monospace">$179.84</div>
+      <div id="feeDescription" class="fee-desc-box u-mb-6">FVF: -</div>
+      
+      <div class="l-flex-align-end-gap8 u-mb-5">
+        <div class="field u-w-140">
+          <label>為替レート <span class="unit">(¥/$)</span></label>
+          <input type="text" inputmode="decimal" id="exchangeRate" value="150" class="highlight">
         </div>
-        <div style="flex:1;padding:8px 10px;border-radius:6px;background:#fef3c7;border:1.5px solid #f59e0b;text-align:center">
-          <div style="font-size:.68rem;color:#b45309;font-weight:600">🇺🇸送料（関税分）</div>
-          <div id="listShipping" style="font-size:1.1rem;font-weight:700;color:#b45309;font-family:&#39;SF Mono&#39;,Consolas,monospace">$33.09</div>
-        </div>
-      </div>
-    </div>
-    <!-- 🌍 アメリカ以外 -->
-    <div id="otherSection" style="">
-      <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:6px">
-        <div class="field" style="width:100px">
-          <label>🇺🇸送料 <span class="unit">(%)</span></label>
-          <input type="text" inputmode="decimal" id="usShippingPct" value="20" class="highlight">
-        </div>
-        <div style="padding:8px 10px;border-radius:6px;background:#fef3c7;border:1.5px solid #f59e0b;text-align:center;min-width:100px">
-          <div style="font-size:.68rem;color:#b45309;font-weight:600">🇺🇸送料参考額</div>
-          <div id="usShippingRef" style="font-size:1.1rem;font-weight:700;color:#b45309;font-family:&#39;SF Mono&#39;,Consolas,monospace">-</div>
+        <div class="rate-status-box">
+          <span id="rateStatus">-</span>
+          <button id="btnFetchRate" class="btn-manual-fetch">手動取得</button>
         </div>
       </div>
-    </div>
-    <div class="grid4">
-      <div class="field">
-        <label>実重量 <span class="unit">(kg)</span></label>
-        <input type="text" inputmode="decimal" id="weight" value="0.5" class="highlight">
+      
+      <div class="l-flex-align-end-gap8 u-mb-5">
+        <div class="field u-w-140">
+          <label>燃油サーチャージ <span class="unit">(%)</span></label>
+          <input type="text" inputmode="decimal" id="fuelSurcharge" value="28.75" class="highlight">
+        </div>
+        <div class="rate-status-box">
+          SpeedPAK APIから自動取得<br><span id="fuelStatus" class="tool-desc">-</span>
+          <button id="btnFetchFuel" class="btn-manual-fetch">手動取得</button>
+        </div>
       </div>
-      <div class="field">
-        <label>縦 <span class="unit">(cm)</span></label>
-        <input type="text" inputmode="decimal" id="length" value="10" class="highlight">
-      </div>
-      <div class="field">
-        <label>横 <span class="unit">(cm)</span></label>
-        <input type="text" inputmode="decimal" id="width" value="10" class="highlight">
-      </div>
-      <div class="field">
-        <label>高さ <span class="unit">(cm)</span></label>
-        <input type="text" inputmode="decimal" id="height" value="5" class="highlight">
+      
+      <button class="toggle-btn" id="settingsToggle">詳細設定 ▼</button>
+      <div class="settings-content" id="settingsContent">
+        <div class="grid2 grid2-gap6 u-mt-6">
+          <div class="field"><label>eBay手数料 (%)</label><input type="text" inputmode="decimal" id="ebayFeeRate" value="12.7"></div>
+          <div class="field"><label>閾値 ($)</label><input type="text" inputmode="decimal" id="feeThreshold" value="2500"></div>
+          <div class="field"><label>eBay手数料2 (%)</label><input type="text" inputmode="decimal" id="ebayFeeRate2" value="2.35"></div>
+          <div class="field"><label>1注文あたり ($)</label><input type="text" inputmode="decimal" id="perOrderFee" value="0.40"></div>
+          <div class="field"><label>Promoted (%)</label><input type="text" inputmode="decimal" id="promotedRate" value="2" class="highlight"></div>
+          <div class="field"><label>海外手数料 (%) <span id="toggleIntlFee" class="text-link-small">詳細</span></label><input type="text" inputmode="decimal" id="intlFeeRate" value="0.95" class="highlight"></div>
+          
+          <div id="intlFeeDetail" class="intl-fee-detail-box">
+            <div class="fee-detail-title">海外決済手数料ボリュームディスカウント</div>
+            <div class="fee-detail-note">前々月の総売上に応じて割引 ※Below Standard評価の場合は適用外</div>
+            <table class="fee-table">
+              <tbody>
+                <tr><th>総売上(前々月)</th><th>手数料率</th></tr>
+                <tr><td class="muted">$3,000未満</td><td>1.65%</td></tr>
+                <tr><td>$3,000〜$9,999</td><td>1.20%</td></tr>
+                <tr><td>$10,000〜$49,999</td><td>0.95%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="field"><label>Payoneer (%)</label><input type="text" inputmode="decimal" id="payoneerRate" value="2" class="highlight"></div>
+          <div class="field"><label>消費税率 (%)</label><input type="text" inputmode="decimal" id="taxRate" value="10"></div>
+        </div>
       </div>
     </div>
-    <div style="display:flex;gap:12px;margin-top:4px;font-size:.75rem;color:var(--text3)">
-      <span>体積重量(÷5000): <strong id="volWeight" style="color:var(--text2)">0.680 kg</strong></span>
-      <span>Economy(÷8000): <strong id="volWeightEco" style="color:var(--text2)">0.425 kg</strong></span>
+
+    <div class="fee-detail-section u-text-center">
+      <button class="toggle-btn" id="feeToggle">手数料内訳 ▼</button>
+      <div class="settings-content" id="feeDetailContent">
+        <div class="card card-no-mb-mt8">
+          <div class="fee-row"><span class="fee-label">売上</span><span class="fee-val" id="revenueYen">-</span></div>
+          <div class="fee-row"><span class="fee-label">手数料計</span><span class="fee-val val-red" id="totalFeesYen">-</span></div>
+          <hr class="divider">
+          <div class="fee-row"><span class="fee-label">eBay FVF <span id="feeEbayDetail" class="fee-detail-sub">-</span></span><span class="fee-val" id="feeEbay">-</span></div>
+          <div class="fee-row"><span class="fee-label">Promoted</span><span class="fee-val" id="feePromoted">-</span></div>
+          <div class="fee-row"><span class="fee-label">海外手数料</span><span class="fee-val" id="feeIntl">-</span></div>
+          <hr class="divider">
+          <div class="fee-row"><span class="fee-label">Payoneer</span><span class="fee-val" id="feePayoneer">-</span></div>
+          <div class="fee-row fee-total"><span class="fee-label">合計</span><span class="fee-val" id="feeTotalUsd">-</span></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- 手数料設定 -->
-  <div class="card">
-    <h2><span class="icon">⚙️</span> 手数料・レート</h2>
-    <!-- ストアプラン切替 -->
-    <div class="mode-bar" style="margin-bottom:2px">
-      <button class="mode-btn active" id="planNoStore" onclick="setStorePlan(&#39;noStore&#39;)">ストアなし / Starter</button>
-      <button class="mode-btn" id="planStore" onclick="setStorePlan(&#39;store&#39;)">Basic以上</button>
-    </div>
-    <div style="font-size:.65rem;color:var(--text3);text-align:center;margin-bottom:6px">eBayストア契約の有無で手数料率が異なります</div>
-    <!-- カテゴリNo + 名前 -->
-    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:4px">
-      <div class="field" style="width:110px">
-        <label>カテゴリNo.</label>
-        <input type="number" id="categoryNo" value="20561" placeholder="例: 20561" class="highlight">
+  <div class="right-column">
+    <div class="profit-summary">
+      <div class="profit-summary-item" id="summaryProfit">
+        <div class="p-label">推奨便 利益</div>
+        <div class="p-val" id="bestProfitYen">-</div>
+        <div class="p-sub" id="bestMethodName">-</div>
+        <div class="profit-summary-note">利益OK判定：≥¥500 かつ ≥5%</div>
       </div>
-      <div class="field" style="flex:1;min-width:0">
-        <label>カテゴリ名</label>
-        <div id="categoryName" style="font-size:.82rem;padding:6px 0;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">CDs</div>
+      <div class="profit-summary-divider"></div>
+      <div class="profit-summary-item" id="summaryRefund">
+        <div class="p-label">還付込み</div>
+        <div class="p-val" id="bestProfitRefundYen">-</div>
       </div>
     </div>
-    <div style="font-size:.75rem;color:var(--text2);margin-bottom:6px;padding:4px 8px;background:#f8fafc;border-radius:4px" id="feeDescription">FVF: 15.3%($33.41)</div>
-    <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:5px">
-      <div class="field" style="width:140px">
-        <label>為替レート <span class="unit">(¥/$)</span></label>
-        <input type="text" inputmode="decimal" id="exchangeRate" value="153.5115" class="highlight">
+    
+    <div class="u-hidden"><span id="bestProfitRate"></span><span id="bestRateSub"></span></div>
+    
+    <div class="card">
+      <h2><span class="icon">🚚</span> 配送方法別 利益比較</h2>
+      <div class="u-mb-10">
+        <select id="destCountry" class="country-select"></select>
       </div>
-      <div style="font-size:.68rem;color:var(--text3);margin-bottom:4px;line-height:1.3">
-        <span id="rateStatus">✓ ¥159.5400/$ (自動取得)</span>
-        <button onclick="fetchRate(false)" style="font-size:.62rem;padding:1px 6px;border:1px solid var(--border);border-radius:4px;background:#fafafa;cursor:pointer;color:var(--text3);margin-left:4px">手動取得</button>
-      </div>
+      <div id="resultsContainer"></div>
     </div>
-    <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:5px">
-      <div class="field" style="width:140px">
-        <label>燃油サーチャージ <span class="unit">(%)</span></label>
-        <input type="text" inputmode="decimal" id="fuelSurcharge" value="28.75" class="highlight">
-      </div>
-      <div style="font-size:.68rem;color:var(--text3);margin-bottom:4px;line-height:1.3">
-        SpeedPAK APIから自動取得<br><span id="fuelStatus" style="color:var(--text3)">✓ 48.3% (SpeedPAK API)</span>
-        <button onclick="fetchFuelSurcharge(false)" style="font-size:.62rem;padding:1px 6px;border:1px solid var(--border);border-radius:4px;background:#fafafa;cursor:pointer;color:var(--text3);margin-left:4px">手動取得</button>
-      </div>
-    </div>
-    <button class="toggle-btn" id="settingsToggle" onclick="toggleSettings()">詳細設定 ▼</button>
-    <div class="settings-content" id="settingsContent">
-      <div class="grid2" style="gap:6px;margin-top:6px">
-        <div class="field"><label>eBay手数料 (%)</label><input type="text" inputmode="decimal" id="ebayFeeRate" value="12.7"></div>
-        <div class="field"><label>閾値 ($)</label><input type="text" inputmode="decimal" id="feeThreshold" value="2500"></div>
-        <div class="field"><label>eBay手数料2 (%)</label><input type="text" inputmode="decimal" id="ebayFeeRate2" value="2.35"></div>
-        <div class="field"><label>1注文あたり ($)</label><input type="text" inputmode="decimal" id="perOrderFee" value="0.40"></div>
-        <div class="field"><label>Promoted (%)</label><input type="text" inputmode="decimal" id="promotedRate" value="2" class="highlight"></div>
-        <div class="field"><label>海外手数料 (%) <span style="font-weight:400;color:var(--text3);cursor:pointer;font-size:.65rem" onclick="document.getElementById(&#39;intlFeeDetail&#39;).style.display=document.getElementById(&#39;intlFeeDetail&#39;).style.display===&#39;none&#39;?&#39;block&#39;:&#39;none&#39;">詳細</span></label><input type="text" inputmode="decimal" id="intlFeeRate" value="0.95" class="highlight"></div>
-        <div id="intlFeeDetail" style="display:none;grid-column:1/-1;font-size:.7rem;color:var(--text2);background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:8px 10px;line-height:1.5">
-          <div style="font-weight:600;margin-bottom:4px">海外決済手数料ボリュームディスカウント</div>
-          <div style="color:var(--text3);margin-bottom:6px">前々月の総売上に応じて割引 ※Below Standard評価の場合は適用外</div>
-          <table style="width:100%;border-collapse:collapse;font-size:.68rem">
-            <tbody><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:3px 4px">総売上(前々月)</th><th style="text-align:right;padding:3px 4px">手数料率</th></tr>
-            <tr><td style="padding:2px 4px;color:var(--text3)">$3,000未満</td><td style="text-align:right;padding:2px 4px">1.65%</td></tr>
-            <tr><td style="padding:2px 4px">$3,000〜$9,999</td><td style="text-align:right;padding:2px 4px">1.20%</td></tr>
-            <tr><td style="padding:2px 4px">$10,000〜$49,999</td><td style="text-align:right;padding:2px 4px">0.95%</td></tr>
-            <tr><td style="padding:2px 4px">$50,000〜$99,999</td><td style="text-align:right;padding:2px 4px">0.70%</td></tr>
-            <tr><td style="padding:2px 4px">$100,000以上</td><td style="text-align:right;padding:2px 4px">0.40%</td></tr>
-          </tbody></table>
-        </div>
-        <div class="field"><label>Payoneer (%)</label><input type="text" inputmode="decimal" id="payoneerRate" value="2" class="highlight"></div>
-        <div class="field"><label>消費税率 (%)</label><input type="text" inputmode="decimal" id="taxRate" value="10"></div>
-      </div>
-    </div>
-  </div>
-
-<div class="fee-detail-section" style="text-align:center">
-  <button class="toggle-btn" id="feeToggle" onclick="toggleFeeDetail()">手数料内訳 ▼</button>
-  <div class="settings-content" id="feeDetailContent">
-    <div class="card" style="text-align:left;margin-top:8px;margin-bottom:0">
-      <div class="fee-row"><span class="fee-label">売上</span><span class="fee-val" id="revenueYen">¥34,842（$218.39）</span></div>
-      <div class="fee-row"><span class="fee-label">手数料計</span><span class="fee-val" style="color:var(--red)" id="totalFeesYen">¥7,620</span></div>
-      <hr class="divider">
-      <div class="fee-row"><span class="fee-label">eBay FVF <span id="feeEbayDetail" style="font-weight:400;color:var(--text3);font-size:.75rem">($33.41 + $0.40/注文) 税込</span></span><span class="fee-val" id="feeEbay">$37.20</span></div>
-      <div class="fee-row"><span class="fee-label">Promoted</span><span class="fee-val" id="feePromoted">$4.80</span></div>
-      <div class="fee-row"><span class="fee-label">海外手数料</span><span class="fee-val" id="feeIntl">$2.28</span></div>
-      <hr class="divider">
-      <div class="fee-row"><span class="fee-label">Payoneer</span><span class="fee-val" id="feePayoneer">$3.48（¥556）</span></div>
-      <div class="fee-row fee-total"><span class="fee-label">合計</span><span class="fee-val" id="feeTotalUsd">$47.76（¥7,620）</span></div>
-      <div class="note">※eBay系手数料には消費税10%込。Payoneerは為替変換時控除。</div>
+    <div class="note footer-note">
+      ※SpeedPAK系送料はAPIからリアルタイム取得（燃油サーチャージ込み）。eLogi/日本郵便は固定テーブル。利益OK判定：≥¥500 かつ ≥5%。還付＝仕入税＋eBay手数料税。
     </div>
   </div>
 </div>
 
-</div><!-- /left-column -->
+<script src="./ebay_category_tree.js"></script>
 
-<div class="right-column">
-<!-- ===== 利益サマリー ===== -->
-<div class="profit-summary">
-  <div class="profit-summary-item" id="summaryProfit">
-    <div class="p-label">推奨便 利益</div>
-    <div class="p-val" id="bestProfitYen">¥4,317</div>
-    <div class="p-sub" id="bestMethodName">FedEx IP Pak</div>
-    <div style="font-size:10px;color:#93c5fd;margin-top:2px">利益OK判定：≥¥500 かつ ≥5%</div>
-  </div>
-  <div class="profit-summary-divider"></div>
-  <div class="profit-summary-item" id="summaryRefund">
-    <div class="p-label">還付込み</div>
-    <div class="p-val" id="bestProfitRefundYen">¥6,732</div>
-  </div>
-</div>
-<!-- 利益率（非表示、計算ロジック維持用） -->
-<div style="display:none"><span id="bestProfitRate">22.1%</span><span id="bestRateSub">仕入額 ¥19,500 に対して</span></div>
-<!-- ===== 配送方法別 利益比較 ===== -->
-<div class="card">
-  <h2><span class="icon">🚚</span> 配送方法別 利益比較</h2>
-  <div style="margin-bottom:10px">
-    <select id="destCountry" style="height:36px;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.95rem;width:100%;background:#fafafa;cursor:pointer;font-weight:600"></select>
-  </div>
-  <div id="resultsContainer"></div>
-</div>
-<div class="note" style="text-align:center;margin-top:-12px;margin-bottom:16px" id="footerNote">
-  ※SpeedPAK系送料はAPIからリアルタイム取得（燃油サーチャージ込み）。eLogi/日本郵便は固定テーブル。利益OK判定：≥¥500 かつ ≥5%。還付＝仕入税＋eBay手数料税。
-</div>
-</div><!-- /right-column -->
-</div><!-- /main-layout -->
-
-<script src="./eBayリサーチツール_files/ebay_category_tree.js"></script>
-<!-- フォールバック: 新ファイルがない場合は旧ファイルを使用 -->
-<script>if(typeof EBAY_CATEGORIES==='undefined')document.write('<scr'+'ipt src="ebay_categories.js"><\/scr'+'ipt>')</script>
 <script>
-// ========== Shopping Site Bulk Search ==========
-const SHOP_SITES = [
-  { id:'amazon_jp', name:'Amazon JP',    url:'https://www.amazon.co.jp/s?k={q}', checked:true },
-  { id:'rakuten',   name:'楽天',          url:'https://search.rakuten.co.jp/search/mall/{q}/', checked:true },
-  { id:'yahoo_shop',name:'Yahooショッピング', url:'https://shopping.yahoo.co.jp/search?p={q}', checked:false },
-  { id:'mercari',   name:'メルカリ',       url:'https://jp.mercari.com/search?keyword={q}', checked:true },
-  { id:'yahoo_auc', name:'ヤフオク',       url:'https://auctions.yahoo.co.jp/search/search?p={q}', checked:true },
-  { id:'paypay',    name:'PayPayフリマ',   url:'https://paypayfleamarket.yahoo.co.jp/search/{q}', checked:false },
-  { id:'rakuma',    name:'ラクマ',         url:'https://fril.jp/search/{q}', checked:false },
-  { id:'kakaku',    name:'価格.com',      url:'https://kakaku.com/search_results/{q}/', checked:false },
-  { id:'yodobashi', name:'ヨドバシ',       url:'https://www.yodobashi.com/?word={q}', checked:false },
-  { id:'surugaya',  name:'駿河屋',        url:'https://www.suruga-ya.jp/search?category=&search_word={q}', checked:false },
-  { id:'google',    name:'Google',       url:'https://www.google.com/search?q={q}', checked:false },
-  { id:'amazon_us', name:'Amazon US',    url:'https://www.amazon.com/s?k={q}', checked:false },
-  { id:'ebay',      name:'eBay',         url:'https://www.ebay.com/sch/i.html?_nkw={q}', checked:true },
-  { id:'aliexpress',name:'AliExpress',   url:'https://www.aliexpress.com/wholesale?SearchText={q}', checked:false },
-];
-
-function initShopSites() {
-  const container = document.getElementById('shopSites');
-  const saved = JSON.parse(localStorage.getItem('shop_sites_checked') || 'null');
-  SHOP_SITES.forEach(s => {
-    const checked = saved ? (saved[s.id] !== undefined ? saved[s.id] : s.checked) : s.checked;
-    const lbl = document.createElement('label');
-    lbl.innerHTML = `<input type="checkbox" data-shop="${s.id}" ${checked?'checked':''} onchange="saveShopChecks()"> ${s.name}`;
-    container.appendChild(lbl);
-  });
-}
-
-function saveShopChecks() {
-  const obj = {};
-  document.querySelectorAll('#shopSites input[type="checkbox"]').forEach(cb => {
-    obj[cb.dataset.shop] = cb.checked;
-  });
-  localStorage.setItem('shop_sites_checked', JSON.stringify(obj));
-}
-
-function toggleShopAll(on) {
-  document.querySelectorAll('#shopSites input[type="checkbox"]').forEach(cb => { cb.checked = on; });
-  saveShopChecks();
-}
-
-function shopSearch() {
-  const q = document.getElementById('shopQuery').value.trim();
-  if (!q) { alert('キーワードを入力してください'); return; }
-  const encoded = encodeURIComponent(q);
-  let opened = 0;
-  document.querySelectorAll('#shopSites input[type="checkbox"]:checked').forEach(cb => {
-    const site = SHOP_SITES.find(s => s.id === cb.dataset.shop);
-    if (site) { window.open(site.url.replace('{q}', encoded), '_blank'); opened++; }
-  });
-  if (opened === 0) alert('検索するサイトを選択してください');
-}
-
-initShopSites();
-
-// ========== Keyword Gacha ==========
-const KW_LIST = [
-  // Electronics & Gadgets
-  'vintage','camera','lens','turntable','amplifier','headphones','speaker','microphone','radio','cassette',
-  'walkman','gameboy','nintendo','sega','playstation','controller','console','cartridge','adapter','charger',
-  'transformer','oscilloscope','multimeter','soldering','transistor','vacuum tube','calculator','typewriter',
-  // Watches & Jewelry
-  'watch','seiko','casio','citizen','orient','chronograph','automatic','mechanical','quartz','pocket watch',
-  'pendant','necklace','bracelet','ring','brooch','earring','cufflinks','pearl','silver','gold',
-  // Collectibles
-  'figurine','statue','doll','plush','stuffed','miniature','diecast','model kit','gundam','bandai',
-  'pokemon','card','trading card','stamp','coin','medal','badge','pin','patch','sticker',
-  'poster','print','lithograph','painting','calligraphy','scroll','woodblock','ukiyo-e',
-  // Fashion & Accessories
-  'kimono','obi','haori','geta','tabi','tenugui','furoshiki','bag','wallet','purse',
-  'backpack','tote','leather','silk','denim','vintage jacket','sneakers','boots','hat','scarf',
-  // Kitchen & Home
-  'knife','chef knife','santoku','whetstone','ceramic','teapot','tea cup','matcha','cast iron','tetsubin',
-  'bento','chopsticks','lacquerware','bamboo','cutting board','rice cooker','thermos','zojirushi',
-  // Tools & Instruments
-  'chisel','plane','saw','hammer','wrench','pliers','drill','clamp','file','sandpaper',
-  'guitar','violin','flute','harmonica','ukulele','keyboard','synthesizer','drum','cymbal','pedal',
-  // Anime & Manga
-  'manga','anime','cosplay','wig','figure','nendoroid','scale figure','art book','soundtrack','cel',
-  // Automotive & Bicycle
-  'carburetor','exhaust','headlight','mirror','emblem','wheel','tire','brake','suspension','seat',
-  'bicycle','shimano','derailleur','pedal','saddle','handlebar','frame','fork','chain','spoke',
-  // Stationery & Art
-  'fountain pen','ink','notebook','sketchbook','watercolor','acrylic','oil paint','brush','easel','canvas',
-  'washi tape','origami','calligraphy pen','seal','stamp pad',
-  // Outdoor & Sports
-  'fishing reel','fishing rod','lure','tackle','tent','sleeping bag','lantern','compass','binoculars',
-  'golf club','baseball glove','kendo','judo','karate','bokken','shinai',
-  // Misc
-  'antique','retro','rare','limited edition','unused','mint condition','NOS','OEM','genuine','original',
-  'handmade','crafted','custom','restoration','repair','parts','accessories','set','lot','bulk',
-  'japanese','japan','tokyo','osaka','kyoto',
-];
-
-function rollKw() {
-  const count = parseInt(document.getElementById('kwCount').value) || 2;
-  const shuffled = [...KW_LIST].sort(() => Math.random() - 0.5);
-  const picked = shuffled.slice(0, count);
-  document.getElementById('kwResult').innerHTML = picked.map(w => '<span style="background:var(--primary-light);padding:2px 8px;border-radius:4px;margin-right:4px;display:inline-block;cursor:pointer" onclick="copyOneKw(this)" title="クリックでコピー">' + w + '</span>').join('');
-}
-
-function copyOneKw(span) {
-  const text = span.textContent.trim();
-  if (!text) return;
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand('copy');
-  document.body.removeChild(ta);
-  const orig = span.textContent;
-  const origBg = span.style.background;
-  span.textContent = '✓ copy';
-  span.style.background = 'var(--green-bg)';
-  setTimeout(() => { span.textContent = orig; span.style.background = origBg; }, 800);
-}
-
-rollKw(); // 初期表示
-
-// ========== Fee Group System ==========
-
-let currentStorePlan = 'store'; // 'noStore' or 'store'
-let currentFeeGroup = 'default';
-
-const FEE_RATES = {
-  noStore: {
-    default:       { label:'大半のカテゴリ (13.6%)',         rate1:13.6,  th:7500,  rate2:2.35 },
-    books:         { label:'Books, Movies & TV, Music (15.3%)', rate1:15.3,  th:7500,  rate2:2.35 },
-    coins:         { label:'Coins & Paper Money (13.25%)',  rate1:13.25, th:7500,  rate2:2.35 },
-    bullion:       { label:'Bullion (13.6%/7%)',            rate1:13.6,  th:7500,  rate2:7 },
-    jewelry:       { label:'Jewelry & Watches (15%/9%)',    rate1:15,    th:5000,  rate2:9 },
-    watches:       { label:'Watches, Parts & Acc. (15%/6.5%/3%)', tiers:[[15,1000],[6.5,7500],[3,Infinity]] },
-    bags:          { label:"Women's Bags & Handbags (15%/9%)", rate1:15, th:2000,  rate2:9 },
-    guitars:       { label:'Guitars & Basses (6.7%)',       rate1:6.7,   th:7500,  rate2:2.35 },
-    trading_cards: { label:'Trading Cards (13.25%)',        rate1:13.25, th:7500,  rate2:2.35 },
-    nft:           { label:'NFT (5%)',                      rate1:5,     th:0,     rate2:0 },
-    heavy_equip:   { label:'Heavy Equipment (3%/0.5%)',     rate1:3,     th:15000, rate2:0.5 },
-    sports_shoes:  { label:'Athletic Shoes (8%/13.6%)',     special:'shoes', rate_high:8, rate_low:13.6, threshold:150 },
-  },
-  store: {
-    default:       { label:'大半のカテゴリ (12.7%)',         rate1:12.7,  th:2500,  rate2:2.35 },
-    books:         { label:'Books, Movies & TV, Music (15.3%)', rate1:15.3,  th:2500,  rate2:2.35 },
-    coins:         { label:'Coins & Paper Money (9%)',      rate1:9,     th:4000,  rate2:2.35 },
-    bullion:       { label:'Bullion (7.5%/5%/4.5%)',        tiers:[[7.5,1500],[5,10000],[4.5,Infinity]] },
-    jewelry:       { label:'Jewelry & Watches (13%/7%)',    rate1:13,    th:5000,  rate2:7 },
-    watches:       { label:'Watches, Parts & Acc. (12.5%/4%/3%)', tiers:[[12.5,1000],[4,5000],[3,Infinity]] },
-    bags:          { label:"Women's Bags & Handbags (13%/7%)", rate1:13, th:2000,  rate2:7 },
-    guitars:       { label:'Guitars & Basses (6.7%)',       rate1:6.7,   th:2500,  rate2:2.35 },
-    trading_cards: { label:'Trading Cards (12.35%)',        rate1:12.35, th:2500,  rate2:2.35 },
-    nft:           { label:'NFT (5%)',                      rate1:5,     th:0,     rate2:0 },
-    heavy_equip:   { label:'Heavy Equipment (2.5%/0.5%)',   rate1:2.5,   th:15000, rate2:0.5 },
-    sports_shoes:  { label:'Athletic Shoes (7%/12.7%)',     special:'shoes', rate_high:7, rate_low:12.7, threshold:150 },
-    camera:        { label:'Camera & Photography (9.35%)',  rate1:9.35,  th:2500,  rate2:2.35 },
-    electronics:   { label:'Electronics (9.35%)',           rate1:9.35,  th:2500,  rate2:2.35 },
-    instruments:   { label:'Musical Instruments (10.35%)',  rate1:10.35, th:2500,  rate2:2.35 },
-    stamps:        { label:'Stamps (9.7%)',                 rate1:9.7,   th:2500,  rate2:2.35 },
-    motors:        { label:'eBay Motors Parts (11.5%)',     rate1:11.5,  th:1000,  rate2:2.35 },
-    vinyl:         { label:'Vinyl Records (12.7%)',         rate1:12.7,  th:2500,  rate2:2.35 },
-  },
-};
-
-// Category ID → Fee Group mapping (auto-detected from old rates in ebay_categories.js)
-const CATEGORY_GROUP_MAP = {};
-(function buildCategoryGroupMap() {
-  // books
-  [280,29223,29792,45113,45114,48831,120869,162028,118254,1105,11442,69496,171223,171273,261186,309,381,617,41676,52554,63821,132975,618,52473,176983,176984].forEach(id => CATEGORY_GROUP_MAP[id] = 'books');
-  // guitars
-  [621,4713,22966,33021,33034,38072,47067,119544,159948,7266,22671,22672,33050,41408,41431,46677,46680,46682,47075,85857,148640,22669,41411,41412,41413,41414,41415,41416,41417,41418,41419,41420,41421,41422,101973,101974,101975,159952,22670,41406,41407,41423,41424,41434,46678,47076,85856,101976,101977,148648,170605,183389,181219,181220,181221].forEach(id => CATEGORY_GROUP_MAP[id] = 'guitars');
-  // heavy_equip
-  [183952,184249,258645,26249,46697,73155,25253,41492,58161,58178,61568,63924,73094,73120,73121,91953,92152,95493,95494,95495,97121,97122,97123,97125,97185,177642,177643,259041,259042].forEach(id => CATEGORY_GROUP_MAP[id] = 'heavy_equip');
-  // nft
-  [262052,262056,262051,262053,262054,262055].forEach(id => CATEGORY_GROUP_MAP[id] = 'nft');
-  // sports_shoes
-  [95672,15709].forEach(id => CATEGORY_GROUP_MAP[id] = 'sports_shoes');
-  // bags
-  [169291].forEach(id => CATEGORY_GROUP_MAP[id] = 'bags');
-  // watches
-  [51020,93720,98625,117039,165144,10324,57714,57715,57720,57721,57723,3937,31387,260326,98624,260329,260330,260331,260332].forEach(id => CATEGORY_GROUP_MAP[id] = 'watches');
-  // coins
-  [524,525,526,528,786,3358,11942,31373,39455,41084,171524,171525,176958,11946,11947,11948,11949,11950,176959,11952,11953,41087,139806,176960,11957,11958,11959,39458,41090,173586,176961,11963,11964,11965,11966,39461,41093,166676,171526,173587,176962,11969,11970,11971,11973,41099,41102,176963,11976,11977,11978,11980,11981,11982,11983,39464,159713,176964,176965,529,179531,179532,179533,179534,527,39468,39469,39470,39471,39472,39473,149937,41109,139962,149924,3356,149926,149927,149929,149930,149931,173588,173589,149932,173591,173592,173593,173594,173683,257,543,544,545,546,547,45142,534,3391,173597,173598,173687,118376,118377,118378,118379,156977,170040,173599,173600,173601,173688,40715,40717,45137,68590,162150,162152,162153,162155,173603,173605,173689,173607,173608,173609,173690,537,173629,173630,173631,173643,173644,173645,173646,173692,45147,149950,162168,162169,162170,162171,162172,162173,162174,162175,173625,173626,173627,173628,177492,539,3390,538,3396,3397,3398,3399,3401,3402,3404,3405,3406,3408,4398,58529,93508,98765,122480,141146,141151,4186,4941,32477,32478,173693,175663,28680,31137,122492,173612,173686,39479,39481,45149,45150,45151,45152,45153,45154,45155,45156,45157,45158,45159,68588,69510,77528,90641,90643,90644,96810,108914,122491,162180,7955,7968,18473,173620,173647,173648,173694,542,45161,45162,45163,45164,149951,149952,162176,162177,162178,162179,3392,535,3369,3372,3374,3375,3376,170827,45143,48026,4184,162157,162158,162159,162160,162161,162162,162163,162164,162165,162166,173613,173614,173615,173616,533,48024,127145,139029,162142,162143,162145,162146,162147,162148,162149,167155,167156,167157,167158,167160,167161,167162,167164,167958,167960,536,3378,3379,3380,3382,3383,3384,3385,3386,3387,3388,3389,149938,149939,149940,173610,173611,385,3098,3440,3432,3437,4369,48027,48028,48029,162187,162188,162189,162190,162191,162192,162193,166680,166681,166682,166683,166684,3422,162218,162219,162220,162221,162222,162223,162224,162225,162226,162227,162228,167964,167965,167966,167967,167968,167969,167970,167972,167973,3424,3441,45345,162195,3425,3429,3430,27442,3431,3438,162196,162197,162198,162199,162201,162202,162203,3173,3433,3434,3435,3439,3442,47398,58508,58509,58510,58511,58512,58513,58514,58515,67208,67209,67210,67211,69508,69509,90637,90638,90639,90640,96807,96808,108913,122473,141087,162204,162205,162232,3436,162206,162207,162208,162209,162210,162211,162212,162213,162214,162215,162216,162194,376,3044,3413,3414,3415,3416,3418,3419,3420,3421,40029,40030,40031,40032,40033,40034,3417,149943,149944,149945,149946,173623,162139,162140,162141,255,3446,3447,3448,3449,3450,21094,162230,162231,168683,168684,168685,3445,3451,162229,168687,168688,258,59057,59067,59097,72382,259,3182,3453,3454,3455,3456,3457,3458,4370,7109,27444,139967,142503,162135,162137,162138,167951,167952,173621,175662,178967,532,3364,3365,4734,4735,4738,4737,4739,4740,4741,18470,173685,531,39475,39476,39477,39478,530,548,162234,162235,162236,169305,179170,179171,179172].forEach(id => CATEGORY_GROUP_MAP[id] = 'coins');
-  // trading_cards
-  [219,171198,183050,183051,183052,183053,183054,183059,259148,259149,259150,261037,261038,261950,183490,261035,261036,261336,261947,2535,183454,183455,183456,183457,183458,183459,183461,183462,183463,183464,183465,261039,261040,261042,261043,261951,261041,261044,261045,261337,261948,170135,183437,183438,183439,183440,183441,183442,261949,261328,261329,261330,261331,261332,261333,261334,261335,261893].forEach(id => CATEGORY_GROUP_MAP[id] = 'trading_cards');
-  // bullion
-  [34943,3361,39489,177653,3360,139965,162133,162134,177652,178906,166679,34942,177656,177657,180910].forEach(id => CATEGORY_GROUP_MAP[id] = 'bullion');
-  // instruments (store only - noStore uses default)
-  [308,624,10183,16227,16229,16230,16231,47096,112678,16226,47078,90849,91502,178976,180017,181271,181272,181273,181275,181276,181277,181278,181279,261877,182154,182155,182159,182160,182161,261878,261879,182156,182157,182158,261881,261882,261883,261884,12921,12930,29945,30889,69960,81967,81970,132998,170088,170089,177022,177023,177024,177025,182103,182104,620,16214,16215,16216,41396,64374,75557,101554,159943,159944,159945,179014,179015,182139,182140,182142,182143,182144,182145,182146,182141,261874,261875,261876,52555,50590,64602,64604,64605,64606,163828,1288,39179,41404,64388,101555,106454,1289,16219,38088,21766,47042,117049,148725,148727,148728,182147,182148,261866,261867,261868,261869,16220,43376,43377,85860,181269,181270,181274,181490,182149,622,41441,10175,38069,38093,38095,38096,38097,93771,181229,181230,181231,181232,181233,181234,181235,181236,181239,181241,181243,181245,261863,39178,41457,47090,148620,148621,181248,41440,41458,181250,181251,181253,41450,41451,41452,41456,47089,261864,10173,41449,41453,47084,47579,182151,182152,623,10178,16222,16225,38107,10177,10179,16221,16223,16224,101567,112677,181283,181284,181285,181286,181287,181288,181289,181290,181291,261870,261871,182163,182166,182167,182169,182170,182171,182173,182164,182165,182168,182172,118975,118976,118977,159946,181156,181157,181158,181159,181160,181161,119027,119026,181256,181257,181258,119024,119025,181261,181262,181263,181264,181265,182217,118979,118983,118984,118985,118994,181164,181165,181166,181167,181168,181169,181171,181173,181174,181175,181176,181177,181179,181181,181182,181183,181184,181185,181188,181189,181190,181192,182214,181194,181195,159954,178895,181197,181198,181199,181201,181211,181213,182215,119029,119030,181204,181205,181206,181207,181208,119095,181212,181214,181215,181216,181218,182216,182150].forEach(id => CATEGORY_GROUP_MAP[id] = 'instruments');
-  // electronics (store only)
-  [14961,296,4669,4673,4675,40065,96966,163853,15051,20381,40054,40979,149987,4672,48692,175731,175732,175733,15050,40059,48694,48701,48703,48704,48705,48706,48707,48708,48709,48710,48711,175735,175736,175737,175738,1498,14935,32810,50549,50550,50551,50552,50564,64578,67773,71527,75386,85806,94844,48605,48606,79834,79835,149976,175712,60203,71530,75389,75390,94830,73335,156955,168105,14936,18795,18805,39746,39754,79839,175717,3314,9425,15048,20034,33929,41373,58353,84079,139968,184642,15053,15054,15056,48626,73839,96954,109256,111694,112529,163769,184618,260318,163829,168058,11071,11725,22610,39804,96969,175711,4787,4786,14971,22635,48645,48647,81741,175708,14990,72406,3271,14970,14981,175837,178894,183068,183069,183071,184645,58042,3317,15088,48649,50595,50596,50597,67807,71574,73368,73374,73382,116868,39996,64627,67815,71573,73372,163851,168088,175742,183074,183078,182098,183079,48638,75395,115940,159909,48635,48637,75397,88754,175725,185049,185050,185051,185052,185116,185117,185118,185053,184435,185043,185068,185119,260301,260302,185061,185065,259701,14985,19656,19699,48460,69962,69963,69965,69967,91384,157158,157161,163862,175833,182110,182111,3278,4785,15199,23789,23791,29946,29948,38070,38071,41459,47091,47092,113484,119018,119019,123445,159955,163896,168129,177027,177028,178896,261865,711,4702,11722,101642,4692,4701,11716,11717,11718,11719,11720,11721,98923,98924,101644,109092,167943,170067,4684,11724,18871,3319,21168,21169,21517,33513,51541,100501,184620,184622,184623,184648,185014,185015,185016,29954,32943,74923,74925,74926,151236,167938,74927,83880,162044,162485,3860,19591,69341,172516,21198,30085,30088,79003,30082,79008,79009,79010,88665,88667,88668,30086,30087,87635,87637,124850,155817,151226,31388,45089,48515,64354,69573,89161,121464,155823,4201,4689,4690,4790,15230,15251,15252,15256,15257,30089,83874,83876,83877,29965,29970,29973,29980,43479,170066,629,15226,29983,29985,29986,29990,29991,29993,162048,3323,15216,30040,30059,78999,79000,79001,80390,150044,179697,38583,156595,156597,171833,182174,182175,260000,9355,20349,20357,20373,35190,42425,43307,48571,48677,58540,58543,68030,80077,88468,122962,123417,123422,132297,146504,166030,179406,38331,43304,45065,136699,29778,43308,146493,175744,178893,182065,182066,182067,182068,182069,182073,167,169,31509,39976,51071,11161,73329,80135,80136,175664,175665,175666,131542,158816,158817,175671,3516,11183,44995,44996,44999,45002,58297,61816,61840,67262,99269,101270,175709,175710,4193,14906,162075,175690,182,185,3768,3783,11226,41859,80015,80356,158906,158911,175689,25321,51052,99231,158845,168068,175688,260137,11202,16191,16204,73452,86728,99319,156545,175682,175705,11205,11197,16211,51288,51328,101356,170599,170601,175685,175686,182087,3761,16145,27386,3673,46322,80151,131486,131487,131494,131495,131502,131503,170078,42017,44980,20318,168059,42014,51064,44940,90715,90718,90719,31568,31569,168061,175676,168060,170080,170082,175668,11175,51167,51168,44992,51199,64061,80216,11210,56088,56090,56091,56092,71509,168074,61839,80225,86720,175699,11211,64052,175701,175702,175703,184657,184658,184659,11180,51268,58319,58320,58321,67286,67287,67292,175704,11209,58317,58322,64069,176976,180235,183063,183064,260315,260316,260317,259696].forEach(id => CATEGORY_GROUP_MAP[id] = 'electronics');
-  // stamps (store only)
-  [262,265,675,676,678,679,682,683,686,688,3461,3463,680,681,685,690,691,3462,139771,689,47148,684,139773,139774,139775,179325,3464,139777,139778,687,139780,139781,139782,139783,139784,47149,50252,264,3477,3479,3480,3481,3482,3485,3486,7168,47150,47151,47229,168200,3500,3505,3507,3508,3509,3510,23739,65130,65137,65143,65144,65152,65154,65158,65165,65166,101763,179326,699,3489,3490,4744,4749,7886,7891,7903,12563,17734,17937,21035,35284,35285,35286,35288,35289,40370,40395,40411,40413,40417,40419,40422,42829,47159,47160,47162,47163,47164,47165,47167,47169,47170,47171,47172,65182,65183,68004,80121,91581,127399,127400,127402,127405,179392,179393,179394,179395,179396,179397,179398,703,4753,7896,30261,30262,65203,139789,139790,139791,162063,162064,162065,162066,162067,162068,162069,168201,168202,65213,68096,70097,70098,91583,139793,139794,139796,65207,162062,168205,168207,168208,179401,65210,65211,65212,65214,162070,36716,65200,65201,65202,65204,65205,65206,3459,4751,7937,139792,166764,179402,263,65175,65176,65177,65178,65179,70088,70094,70096,73184,73185,73186,73187,73188,73189,73190,73191,73192,73193,73194,73195,73197,73198,73199,73200,73201,73202,73203,73204,73205,73206,73208,73209,73210,73211,73212,73213,73214,73215,73216,73217,73218,73219,73220,73221,73222,73223,73224,73225,73226,73227,73228,73229,73230,73231,73234,73236,73237,73238,73239,73242,80110,80111,80112,80113,80114,80115,80116,80118,80119,80120,90895,91575,91576,93831,98957,162482,170137,128308,145834,179378,179379,179380,179381,179382,179383,179384,179385,179386,179387,179388,179389,179390,179391,47176,68114,91577,91578,91579,91580,123786,123787,123789,127408,127409,127410,127411,146901,162054,169978,170608,179327,179328,179329,179330,179331,179332,179333,179334,179335,179336,179337,179338,179339,179340,179341,179342,179343,3494,47173,127351,128302,145824,145825,145826,145827,145828,145829,145831,145832,145833,145835,145836,145837,145838,145839,145840,145841,179399,179400,264,698,700,3515,7908,7921,65184,123783,701,705,82978,162057,162058,162059,179653,123791,123793,123794,123795,123796,123797,123798,123799,123800,123801,123802,123803,123804,127419,131628,145822,145842,179405,127413,127414,127417,127418,127420,127421,127423,127424,127425,127426,127428,127431,127432,127433,127443,162074,166766,166767,166768,166769,166770,166772,166774,166775,166776,166777,166779,166780,166782,179355,179356,179357,179358,179359,179360,179361,179362,179363,179364,179365,179366,179367,179368,179369,179370,179371,179372,179373,179374,179375,179376,3470,3471,3472,3473,3474,3475,3476,23851,80109,111861,3469,111852,111853,111854,111855,111856,111857,111870,153380,153381,153382,70089,73240,150924,179344,179345,179346,179347,179348,179349,179350,179351,179352,179353,179354].forEach(id => CATEGORY_GROUP_MAP[id] = 'stamps');
-  // motors (store only)
-  [6032,26453,34211,34212,34216,34217,34218,34220,34221,34223,34224,34227,34228,34229,34231,34232,34233,34234,119135,119138,119139,34236,34237,34238,34240,38663,33543,33544,33545,33546,33547,33548,46094,33550,33551,33553,33554,33555,33556,33557,33558,36474,38634,42604,43946,33560,33563,33564,33565,33566,33567,33569,33570,42605,33574,33575,33577,33578,63687,33580,33581,33582,33583,33584,33585,33586,33588,33589,33590,33591,33592,33593,42609,33595,33596,33597,33598,33600,33601,33602,33603,33604,46095,46096,33607,33609,33610,33613,33614,33615,33616,33617,33619,33621,33622,33623,33625,33627,38656,38657,46098,50454,33629,33630,33631,33632,33633,33634,33636,42610,33638,33639,33640,33642,33644,33645,33646,33647,33648,33649,33650,33651,33652,33653,33654,33655,33656,33657,36475,38658,38659,42611,50455,50456,50457,63688,33659,33660,33661,33662,33663,33665,33666,33667,33668,33669,46099,33673,33674,33675,33677,33678,33679,33680,38660,43952,46100,33684,33686,63689,33689,33690,33691,33692,33693,40016,46101,33695,33696,33697,33698,33699,33700,33701,33702,33703,33704,33705,33706,40017,40018,42612,46102,50458,50459,63690,63691,33708,33709,33710,33712,33715,33716,33717,38661,42613,33713,33714,36476,172518,6779,33720,33721,33723,33724,33725,33728,33730,33731,33732,33736,46103,46104,63692,33727,171115,33733,171117,33740,33741,33742,33744,33746,33747,33749,42614,43953,43961,66479,170141,170577,33643,50446,50447,50448,50449,50450,50451,50452,35557,35558,35560,35561,35562,35563,35564,35565,35566,35567,35568,38664,35569,35570,35571,35573,35574,35575,35576,35577,35578,50460,50461,84146,35618,171108,34197,34198,34200,34203,34205,34208,42606,80736,80737,80739,80741,140681,140682,140694,140696,34204,140702,140703,140704,140705,140706,140707,140708,140709,140710,140712,140715,34206,140719,140720,140721,140722,140726,140728,140729,140731,34207,140736,140741,140742,140745,140747,140748,170579,26439,26440,26442,26436,90975,90977,90978,90979,26447,26450,26451,119142,124102,26446,26448,26449,26455,26456,26444,31276,31278,38630,38631,31281,31283,50437,31284,31285,31286,50442,124104,50443,177669,177688,124105,171106,46092,46093,50466,84149,35000,35001,34999,43987,43988,63693,43989,35625,43991,43992,43993,43994,43995,43996,43998,43986,63695,63697,63698,63699,63700,63702,63703,38638,38644,38645,38646,169320,169323,169331,169337,38636,169344,169346,169348,169354,169355,169356,169357,169361,38653,169363,169364,169365,169375,169382,38642,169389,38647,169418,169419,169475,169476,38655,169391,171098,171099,38649,38650,169395,169408,169446,169473,43964,43966,43967,43969,43970,43971,43973,43972,43974,43976,43977,43978,43979,43980,43981,43982,43983,43984,50069,50070,50072,50073,50068,40019,40022,50468,100449,100450,100451,100453,100457,100462,100463,100466,100467,100468,107058,107066,133192,133193,173651,133197,133198,133199,133202,133203,133206,133207,175569,107064,133210,107063,173667,175550,107070,173669,173672,173673,173678,173679,176932,175585,175614,111104,111112,111114,111116,111117,31280,124111,124112,124113,124114,124115,56422,171119,6783,39405].forEach(id => CATEGORY_GROUP_MAP[id] = 'motors');
-  // jewelry (identified by name patterns in the 12.7% default pool)
-  [288,289,291,494,499,502,505,924,1435,3229,3820,3829,3849,10243,10292,10298,10323,10967,10974,10976,10986,10990,10992,11013,11021,11313,11314,11315,12519,12520,13718,13723,13727,13731,14057,14085,14884,20189,20266,28438,28439,28440,28442,28443,28446,28447,28448,28449,28451,28452,28455,28456,28457,28458,28459,28462,28463,28464,28465,28466,28474,28475,28476,28477,28478,28481,28482,28483,28484,28485,28486,30119,31726,32050,34064,34065,34104,35790,35802,35810,35816,35830,35868,36009,36536,37927,40132,41198,43205,44004,45078,45079,45085,45399,47122,47184,48583,48827,48939,48948,48954,49018,50304,50346,50637,50647,50692,51011,51014,52561,52568,52570,52576,52596,52598,52599,52600,52603,56143,56145,56147,58553,60115,60120,60619,64499,64500,64503,64505,64507,64508,64509,64510,64511,64515,64932,67681,67698,67699,67700,67701,67703,67705,67706,67708,67709,67710,67711,67719,67720,67726,71008,73519,73547,83893,84000,84606,84607,84608,86933,86936,91438,91440,92852,92868,92878,93707,95096,95242,97681,97682,98476,98477,98480,98481,98483,98484,98485,98487,98489,98490,98491,98493,98496,98497,98498,98500,98504,98505,98506,98507,98509,98510,98511,98512,98526,98542,98863,99976,101408,101497,102506,102514,102550,103458,103979,105444,106113,108388,110399,110620,110634,110635,110645,110655,110666,112603,112958,113341,113465,113467,113468,113470,116102,134765,136990,137835,137843,137856,140010,150019,150047,150049,150050,150051,150052,150059,150069,150085,150955,150956,152807,152808,155101,156468,156507,158445,158775,158780,160736,160910,162089,162096,162946,162966,162982,162984,163007,163054,163271,163549,163552,163873,164108,164208,164306,164309,164310,164311,164313,164315,164316,164319,164321,164325,164327,164328,164330,164331,164332,164333,164336,164341,164343,164350,164351,164356,164372,164461,164943,164944,164945,164946,164948,164950,164951,164952,164954,164976,164977,164979,164980,164981,164983,165008,165010,165011,165012,165014,165040,165041,165042,165044,165069,165072,165073,165074,165076,165102,165104,165105,165107,165141,165143,165247,165254,165580,165670,165695,165703,165854,165874,165879,165880,165881,165883,165885,165886,165887,165889,165891,165892,165893,165895,165921,165923,165924,165925,165927,165991,166733,166734,167991,168160,168161,168162,168163,168166,168176,168177,168180,168181,177020,177649,177651,177768,177769,177770,179964,183261,183691,183693,183694,183695,183696,183698,183699,185028,259324,260034,261056,261609,261650].forEach(id => CATEGORY_GROUP_MAP[id] = 'jewelry');
-  // minor groups that only differ for store: 11.35% (auto-related), 7.35% (electronics sub), 9.0% (unknown)
-  [84160,6719,6707,49996,6728,63677,26434,173665].forEach(id => CATEGORY_GROUP_MAP[id] = 'motors');
-  [139971,56083,106273,131553,175669,175670,80053,171485,179,111418,1245,177,111422,164,1244,131511,170083].forEach(id => CATEGORY_GROUP_MAP[id] = 'electronics');
-  [177980,25645,36085].forEach(id => CATEGORY_GROUP_MAP[id] = 'electronics');
-  // motors tires (9.7%/$1000)
-  [66471,50071,179680,263048,124313,175571,171111,180242,184924,6747,38635].forEach(id => CATEGORY_GROUP_MAP[id] = 'motors');
-  // vinyl records
-  [176985].forEach(id => CATEGORY_GROUP_MAP[id] = 'vinyl');
-})();
-
-function getGroupForCategory(catId) {
-  // 新形式: EBAY_CATEGORIES (API生成)
-  if (typeof EBAY_CATEGORIES !== 'undefined' && EBAY_CATEGORIES[catId]) {
-    return EBAY_CATEGORIES[catId].group || 'default';
+  if(typeof EBAY_CATEGORIES === 'undefined') {
+    document.write('<scr'+'ipt src="./ebay_categories.js"><\/scr'+'ipt>');
   }
-  // 旧形式: CATEGORY_GROUP_MAP (ハードコード)
-  return CATEGORY_GROUP_MAP[catId] || 'default';
-}
-
-function getEffectiveGroup(group) {
-  const plan = FEE_RATES[currentStorePlan];
-  // For noStore plan, some store-only groups fall back to default
-  if (!plan[group]) return 'default';
-  return group;
-}
-
-// カテゴリ名を取得（新旧両方に対応）
-function getCategoryName(catId) {
-  if (typeof EBAY_CATEGORIES !== 'undefined' && EBAY_CATEGORIES[catId]) {
-    return EBAY_CATEGORIES[catId].name || null;
-  }
-  if (typeof ebayCategoryMap !== 'undefined' && ebayCategoryMap[catId]) {
-    return ebayCategoryMap[catId][0] || null;
-  }
-  return null;
-}
-
-function setStorePlan(plan) {
-  currentStorePlan = plan;
-  document.getElementById('planNoStore').classList.toggle('active', plan === 'noStore');
-  document.getElementById('planStore').classList.toggle('active', plan === 'store');
-  populateFeeGroupDropdown();
-  applyFeeGroup(getEffectiveGroup(currentFeeGroup));
-  saveState();
-}
-
-function populateFeeGroupDropdown() {
-  // 手数料グループは内部管理のみ（UI非表示）
-}
-
-function applyFeeGroup(group) {
-  currentFeeGroup = group;
-  const plan = FEE_RATES[currentStorePlan];
-  const g = plan[group] || plan['default'];
-
-  if (g.special === 'shoes') {
-    // Sports shoes: use rate_low as default (most items < $150)
-    document.getElementById('ebayFeeRate').value = g.rate_low;
-    document.getElementById('feeThreshold').value = g.threshold;
-    document.getElementById('ebayFeeRate2').value = g.rate_high;
-  } else if (g.tiers) {
-    // Multi-tier: set first tier in fields
-    document.getElementById('ebayFeeRate').value = g.tiers[0][0];
-    document.getElementById('feeThreshold').value = g.tiers[0][1];
-    document.getElementById('ebayFeeRate2').value = g.tiers.length > 1 ? g.tiers[1][0] : 0;
-  } else {
-    document.getElementById('ebayFeeRate').value = g.rate1;
-    document.getElementById('feeThreshold').value = g.th;
-    document.getElementById('ebayFeeRate2').value = g.rate2;
-  }
-  updateFeeDescription();
-  calculate();
-}
-
-// ========== Category Lookup ==========
-
-function onCategoryNoInput() {
-  const no = parseInt(document.getElementById('categoryNo').value);
-  const nameEl = document.getElementById('categoryName');
-  const catName = getCategoryName(no);
-  if (catName) {
-    nameEl.textContent = catName;
-    const group = getGroupForCategory(no);
-    const effectiveGroup = getEffectiveGroup(group);
-    applyFeeGroup(effectiveGroup);
-  } else {
-    nameEl.textContent = no ? '不明なカテゴリ' : '-';
-  }
-  saveState();
-}
-
-function updateFeeDescription() {
-  const plan = FEE_RATES[currentStorePlan];
-  const g = plan[currentFeeGroup] || plan['default'];
-  const descEl = document.getElementById('feeDescription');
-  const selling = getEffectiveSellingPrice();
-
-  if (!selling || selling <= 0) {
-    descEl.textContent = 'FVF: 売値を入力してください';
-    return;
-  }
-
-  let fvf = 0;
-  const appliedRates = [];
-
-  if (g.special === 'shoes') {
-    if (selling >= g.threshold) {
-      fvf = selling * (g.rate_high / 100);
-      appliedRates.push(g.rate_high + '%');
-    } else {
-      fvf = selling * (g.rate_low / 100);
-      appliedRates.push(g.rate_low + '%');
-    }
-  } else if (g.tiers) {
-    let remaining = selling;
-    let prevLimit = 0;
-    for (const [rate, limit] of g.tiers) {
-      const band = limit === Infinity ? remaining : Math.min(remaining, limit - prevLimit);
-      if (band <= 0) break;
-      fvf += band * (rate / 100);
-      appliedRates.push(rate + '%');
-      remaining -= band;
-      prevLimit = limit;
-      if (remaining <= 0) break;
-    }
-  } else {
-    if (selling <= g.th) {
-      fvf = selling * (g.rate1 / 100);
-      appliedRates.push(g.rate1 + '%');
-    } else {
-      fvf = g.th * (g.rate1 / 100) + (selling - g.th) * (g.rate2 / 100);
-      appliedRates.push(g.rate1 + '%', g.rate2 + '%');
-    }
-  }
-
-  descEl.textContent = 'FVF: ' + appliedRates.join('+') + '($' + fvf.toFixed(2) + ')';
-}
-
-// Category search and fee group dropdown removed (auto-detect from category No.)
-
-// ========== Shipping Rate Tables (US向け・2025年版PDF準拠) ==========
-
-// --- SpeedPAK FedEx FICP (International Connect Plus) Zone F=USE/CA (÷5,000, 最大68kg, DDP) ---
-const speedpakFicpRates = [
-  [500,2115],[1000,2599],[1500,2840],[2000,3108],[2500,3383],
-  [3000,3540],[3500,3593],[4000,4022],[4500,4451],[5000,4718],
-  [5500,5043],[6000,5366],[6500,5735],[7000,6184],[7500,6683],
-  [8000,6871],[8500,7060],[9000,7249],[9500,8865],[10000,9089],
-  [10500,9346],[11000,9602],[11500,9861],[12000,10116],
-  [12500,11439],[13000,11723],[13500,12006],[14000,12289],
-  [14500,12573],[15000,12857],[15500,13140],[16000,14631],
-  [16500,14940],[17000,15249],[17500,15559],[18000,15867],
-  [18500,16177],[19000,16485],[19500,16794],[20000,17104],
-  [21000,20625],[22000,21657],[23000,22689],[24000,23721],
-  [25000,24754],[26000,25787],[27000,26819],[28000,27852],
-  [29000,28885],[30000,29916],
-  [31000,30950],[32000,31983],[33000,34201],[34000,35237],
-  [35000,36274],[36000,37310],[37000,38346],[38000,39383],
-  [39000,40419],[40000,41455],[41000,42492],[42000,43528],
-  [43000,44565],[44000,45601],[45000,45624],
-  [46000,45624],[47000,45624],[48000,45792],[49000,46746],
-  [50000,47700],[51000,48654],[52000,49608],[53000,50562],
-  [54000,51516],[55000,52470],[56000,53424],[57000,54378],
-  [58000,55332],[59000,56286],[60000,57240],
-  [61000,58194],[62000,59148],[63000,60102],[64000,61056],
-  [65000,62010],[66000,62964],[67000,63918],[68000,64872]
-];
-
-// --- SpeedPAK FedEx IP Envelope (Zone F=USE/CA, 実重量, 最大0.5kg) ---
-const speedpakIpEnvelopeRates = [
-  [500,2091]
-];
-
-// --- SpeedPAK FedEx IP Pak (Zone F=USE/CA, 実重量, 最大2.5kg) ---
-const speedpakIpPakRates = [
-  [500,2427],[1000,2894],[1500,3286],[2000,3686],[2500,4091]
-];
-
-// --- SpeedPAK FedEx IP Package (Zone F=USE/CA, ÷5,000, 最大68kg, DDP) ---
-const speedpakIpPackageRates = [
-  [500,2369],[1000,2655],[1500,2850],[2000,2859],[2500,3186],
-  [3000,3755],[3500,3757],[4000,4252],[4500,4746],[5000,5241],
-  [5500,6429],[6000,6587],[6500,6746],[7000,6905],[7500,7065],
-  [8000,7224],[8500,7383],[9000,7541],[9500,9590],[10000,9788],
-  [10500,9967],[11000,10146],[11500,10325],[12000,10505],
-  [12500,12411],[13000,12620],[13500,12828],[14000,13035],
-  [14500,13243],[15000,13451],[15500,13659],[16000,15914],
-  [16500,16153],[17000,16391],[17500,16631],[18000,16870],
-  [18500,17107],[19000,17346],[19500,17585],[20000,17823],
-  [21000,22085],[22000,23136],[23000,24187],[24000,25240],
-  [25000,26291],[26000,27343],[27000,28394],[28000,29446],
-  [29000,30498],[30000,31550],
-  [31000,32601],[32000,33652],[33000,34689],[34000,35740],
-  [35000,36791],[36000,37842],[37000,38893],[38000,39945],
-  [39000,40996],[40000,42047],[41000,43098],[42000,44149],
-  [43000,45200],[44000,46252],[45000,46252],
-  [46000,46794],[47000,47811],[48000,48828],[49000,49846],
-  [50000,50863],[51000,51880],[52000,52898],[53000,53915],
-  [54000,54932],[55000,55949],[56000,56967],[57000,57984],
-  [58000,59001],[59000,60018],[60000,61036],
-  [61000,62053],[62000,63070],[63000,64087],[64000,65105],
-  [65000,66122],[66000,67139],[67000,68156],[68000,69174]
-];
-
-// --- SpeedPAK DHL Express Envelope (Zone 10=US, 実重量, 最大0.3kg) ---
-const speedpakDhlEnvelopeRates = [
-  [300,2454]
-];
-
-// --- SpeedPAK DHL Express Worldwide (Zone 10=US, ÷5,000, 最大154kg) ---
-const speedpakDhlRates = [
-  [500,2454],[1000,2780],[1500,2898],[2000,3045],[2500,3404],
-  [3000,3761],[3500,4203],[4000,4568],[4500,4934],[5000,5300],
-  [5500,5665],[6000,6029],[6500,6444],[7000,6948],[7500,7450],
-  [8000,7954],[8500,8456],[9000,8958],[9500,9463],[10000,9966],
-  [10500,10469],[11000,10972],[11500,11475],[12000,11978],
-  [12500,12481],[13000,12986],[13500,13487],[14000,13991],
-  [14500,14494],[15000,14998],[15500,15500],[16000,16004],
-  [16500,16508],[17000,17011],[17500,17515],[18000,18018],
-  [18500,18521],[19000,19024],[19500,19528],[20000,20031],
-  [21000,21039],[22000,22045],[23000,23052],[24000,24059],
-  [25000,25065],[26000,26073],[27000,27078],[28000,28085],
-  [29000,29082],[30000,30089],
-  [31000,31093],[32000,32096],[33000,33099],[34000,34102],
-  [35000,35104],[36000,36108],[37000,37111],[38000,38114],
-  [39000,39117],[40000,40120],[41000,41123],[42000,42127],
-  [43000,43129],[44000,44133],[45000,45135],[46000,46139],
-  [47000,47142],[48000,48145],[49000,49148],[50000,50151],
-  [51000,51154],[52000,52158],[53000,53160],[54000,54163],
-  [55000,55166],[56000,56169],[57000,57173],[58000,58175],
-  [59000,59179],[60000,60181],
-  [61000,61185],[62000,62188],[63000,63191],[64000,64194],
-  [65000,65197],[66000,66200],[67000,67204],[68000,68206],
-  [69000,69210],[70000,70213]
-];
-
-// ========== Multi-Country Rate Tables ==========
-
-// --- FedEx FICP Zone M (DE/GB/FR/IT/ES) --- ※Excelソース
-const ficpZoneM = [
-  [500,2010],[1000,2346],[1500,2731],[2000,3068],[2500,3408],[3000,3433],[3500,3490],[4000,3792],[4500,4097],[5000,4400],
-  [5500,5120],[6000,5331],[6500,5543],[7000,5753],[7500,5964],[8000,6176],[8500,6386],[9000,6597],[9500,8010],[10000,8258],
-  [10500,8426],[11000,8596],[11500,8768],[12000,8937],[12500,10498],[13000,10694],[13500,10890],[14000,11085],[14500,11281],[15000,11477],
-  [15500,11672],[16000,13471],[16500,13692],[17000,13914],[17500,14136],[18000,14357],[18500,14580],[19000,14804],[19500,15024],[20000,15246],
-  [21000,20659],[22000,21708],[23000,22758],[24000,23807],[25000,24856],[26000,25906],[27000,26956],[28000,28006],[29000,29055],[30000,30105],
-  [31000,31154],[32000,32203],[33000,35122],[34000,36187],[35000,37251],[36000,38315],[37000,39380],[38000,40444],[39000,41508],[40000,42573],
-  [41000,43637],[42000,44701],[43000,45766],[44000,46830],[45000,46830],[46000,46830],[47000,46830],[48000,46830],[49000,46830],[50000,47137],
-  [51000,48080],[52000,49023],[53000,49966],[54000,50908],[55000,51851],[56000,52794],[57000,53737],[58000,54679],[59000,55622],[60000,56565],
-  [61000,57508],[62000,58450],[63000,59393],[64000,60336],[65000,61279],[66000,62221],[67000,63164],[68000,64107]
-];
-
-// --- FedEx FICP Zone U (AU/NZ) --- ※Excelソース
-const ficpZoneU = [
-  [500,2737],[1000,3014],[1500,3024],[2000,3339],[2500,3656],[3000,3950],[3500,4242],[4000,4535],[4500,4828],[5000,5124],
-  [5500,5337],[6000,5637],[6500,5937],[7000,6235],[7500,6536],[8000,6836],[8500,7135],[9000,7435],[9500,8438],[10000,8764],
-  [10500,9028],[11000,9292],[11500,9555],[12000,9819],[12500,21180],[13000,21733],[13500,22287],[14000,22840],[14500,23394],[15000,23948],
-  [15500,24500],[16000,25053],[16500,25607],[17000,26160],[17500,26715],[18000,27267],[18500,27820],[19000,28375],[19500,28928],[20000,29484],
-  [21000,31945],[22000,33577],[23000,35208],[24000,36837],[25000,38470],[26000,40101],[27000,41732],[28000,43363],[29000,44994],[30000,46626],
-  [31000,48256],[32000,49888],[33000,49944],[34000,50185],[35000,51661],[36000,53137],[37000,54613],[38000,56089],[39000,57565],[40000,59041],
-  [41000,60517],[42000,61993],[43000,63469],[44000,64945],[45000,64945],[46000,64945],[47000,64945],[48000,64945],[49000,64945],[50000,64945],
-  [51000,66208],[52000,67507],[53000,68805],[54000,70103],[55000,71401],[56000,72699],[57000,73998],[58000,75296],[59000,76594],[60000,77892],
-  [61000,79190],[62000,80489],[63000,81787],[64000,83085],[65000,84383],[66000,85681],[67000,86980],[68000,88278]
-];
-
-// --- FedEx IP Package Zone M (DE/GB) --- ※Excelソース
-const ipPackageZoneM = [
-  [500,2413],[1000,2634],[1500,2839],[2000,2841],[2500,3238],[3000,3644],[3500,3647],[4000,4012],[4500,4377],[5000,4741],
-  [5500,5564],[6000,5751],[6500,5939],[7000,6126],[7500,6313],[8000,6500],[8500,6687],[9000,6874],[9500,8617],[10000,8846],
-  [10500,8973],[11000,9102],[11500,9231],[12000,9358],[12500,11293],[13000,11447],[13500,11599],[14000,11751],[14500,11905],[15000,12057],
-  [15500,12210],[16000,14532],[16500,14711],[17000,14891],[17500,15071],[18000,15250],[18500,15430],[19000,15609],[19500,15788],[20000,15877],
-  [21000,22085],[22000,23136],[23000,24188],[24000,25240],[25000,26291],[26000,27343],[27000,28395],[28000,29446],[29000,30498],[30000,31550],
-  [31000,32601],[32000,33653],[33000,34715],[34000,35767],[35000,36819],[36000,37871],[37000,38923],[38000,39975],[39000,41027],[40000,42079],
-  [41000,43131],[42000,44183],[43000,45235],[44000,46287],[45000,46288],[46000,46607],[47000,47620],[48000,48633],[49000,49646],[50000,50659],
-  [51000,51673],[52000,52686],[53000,53699],[54000,54712],[55000,55725],[56000,56738],[57000,57752],[58000,58765],[59000,59778],[60000,60791],
-  [61000,61804],[62000,62818],[63000,63831],[64000,64844],[65000,65857],[66000,66870],[67000,67884],[68000,68897]
-];
-
-// --- FedEx IP Envelope Zone M (DE/GB) --- ※Excelソース
-const ipEnvelopeZoneM = 2091;
-
-// --- FedEx IP Pak Zone M (DE/GB) --- ※Excelソース
-const ipPakZoneM = [
-  [500,2197],[1000,2417],[1500,3011],[2000,3640],[2500,4241]
-];
-
-// --- FedEx IP Package Zone U (AU/NZ) --- ※Excelソース
-const ipPackageZoneU = [
-  [500,4202],[1000,4923],[1500,5814],[2000,6525],[2500,7393],[3000,8247],[3500,8604],[4000,9410],[4500,10217],[5000,11023],
-  [5500,12722],[6000,13295],[6500,13868],[7000,14440],[7500,15014],[8000,15587],[8500,16159],[9000,16731],[9500,20767],[10000,21455],
-  [10500,21873],[11000,22291],[11500,22710],[12000,23129],[12500,25549],[13000,26003],[13500,26458],[14000,26911],[14500,27365],[15000,27818],
-  [15500,28272],[16000,28754],[16500,29207],[17000,29663],[17500,30116],[18000,30570],[18500,31025],[19000,31479],[19500,31934],[20000,32388],
-  [21000,32886],[22000,32886],[23000,33237],[24000,34681],[25000,36126],[26000,37572],[27000,39017],[28000,40461],[29000,41907],[30000,43352],
-  [31000,44796],[32000,46242],[33000,47696],[34000,49142],[35000,50587],[36000,52032],[37000,53478],[38000,54923],[39000,56368],[40000,57814],
-  [41000,59259],[42000,60704],[43000,62150],[44000,63595],[45000,63627],[46000,63627],[47000,63627],[48000,63627],[49000,63627],[50000,63627],
-  [51000,63627],[52000,63627],[53000,63682],[54000,64884],[55000,66085],[56000,67287],[57000,68489],[58000,69690],[59000,70892],[60000,72093],
-  [61000,73295],[62000,74496],[63000,75698],[64000,76899],[65000,78101],[66000,79303],[67000,80504],[68000,81706]
-];
-
-// --- FedEx IP Envelope Zone U (AU/NZ) --- ※Excelソース
-const ipEnvelopeZoneU = 2820;
-
-// --- FedEx IP Pak Zone U (AU/NZ) --- ※Excelソース
-const ipPakZoneU = [
-  [500,3592],[1000,4343],[1500,5057],[2000,5786],[2500,6558]
-];
-
-// --- DHL Zone 2 (France) ---
-const dhlZone2 = [
-  [500,2073],[1000,2073],[1500,2468],[2000,2905],[2500,3195],[3000,3340],[3500,3555],[4000,3898],[4500,4053],[5000,4208],
-  [5500,4829],[6000,5454],[6500,6077],[7000,6701],[7500,7324],[8000,7949],[8500,8571],[9000,9195],[9500,9819],[10000,10443],
-  [10500,11145],[11000,11847],[11500,12547],[12000,13249],[12500,13950],[13000,14651],[13500,15321],[14000,16024],[14500,16725],[15000,17426],
-  [15500,18128],[16000,18830],[16500,19532],[17000,20234],[17500,20935],[18000,21637],[18500,22339],[19000,23041],[19500,23743],[20000,24445],
-  [21000,25790],[22000,27136],[23000,28480],[24000,29824],[25000,31169],[26000,32513],[27000,33858],[28000,35203],[29000,36535],[30000,37891]
-];
-
-// --- DHL Zone 3 (Germany/Italy/NL/CH) ---
-const dhlZone3 = [
-  [500,2073],[1000,2073],[1500,2468],[2000,2905],[2500,3195],[3000,3340],[3500,3555],[4000,3898],[4500,4053],[5000,4208],
-  [5500,4829],[6000,5454],[6500,6077],[7000,6701],[7500,7324],[8000,7949],[8500,8571],[9000,9195],[9500,9819],[10000,10443],
-  [10500,11145],[11000,11847],[11500,12547],[12000,13249],[12500,13950],[13000,14651],[13500,15321],[14000,16024],[14500,16725],[15000,17426],
-  [15500,18128],[16000,18830],[16500,19532],[17000,20234],[17500,20935],[18000,21637],[18500,22339],[19000,23041],[19500,23743],[20000,24445],
-  [21000,25790],[22000,27136],[23000,28480],[24000,29824],[25000,31169],[26000,32513],[27000,33858],[28000,35203],[29000,36535],[30000,37891]
-];
-
-// --- DHL Zone 4 (UK/Spain) ---
-const dhlZone4 = [
-  [500,2285],[1000,2827],[1500,3073],[2000,3378],[2500,3393],[3000,4215],[3500,5139],[4000,6291],[4500,7173],[5000,8055],
-  [5500,8954],[6000,9854],[6500,10753],[7000,11651],[7500,12551],[8000,14108],[8500,15053],[9000,15995],[9500,16941],[10000,17883],
-  [10500,18741],[11000,19600],[11500,20457],[12000,21315],[12500,22172],[13000,23028],[13500,23862],[14000,24721],[14500,25579],[15000,26437],
-  [15500,27294],[16000,28152],[16500,29009],[17000,29865],[17500,30722],[18000,31579],[18500,32437],[19000,33294],[19500,34151],[20000,35007],
-  [21000,36724],[22000,38439],[23000,40155],[24000,41872],[25000,43588],[26000,45305],[27000,47021],[28000,48736],[29000,50462],[30000,52174]
-];
-
-// --- DHL Zone 5 (Canada) ---
-const dhlZone5 = [
-  [500,2342],[1000,2653],[1500,2767],[2000,2907],[2500,3250],[3000,3589],[3500,4012],[4000,4360],[4500,4711],[5000,5059],
-  [5500,5407],[6000,5755],[6500,6174],[7000,6650],[7500,7123],[8000,7599],[8500,8073],[9000,8550],[9500,9031],[10000,9510],
-  [10500,9991],[11000,10471],[11500,10951],[12000,11432],[12500,11912],[13000,12393],[13500,12872],[14000,13353],[14500,13833],[15000,14315],
-  [15500,14795],[16000,15276],[16500,15757],[17000,16237],[17500,16719],[18000,17199],[18500,17680],[19000,18161],[19500,18642],[20000,19123],
-  [21000,20083],[22000,21043],[23000,22003],[24000,22962],[25000,23922],[26000,24881],[27000,25839],[28000,26799],[29000,27749],[30000,28717]
-];
-
-// --- DHL Zone 11 (Australia) ---
-const dhlZone11 = [
-  [500,2419],[1000,2419],[1500,2419],[2000,2427],[2500,4155],[3000,4173],[3500,4297],[4000,4314],[4500,4325],[5000,4330],
-  [5500,5730],[6000,7218],[6500,8708],[7000,10197],[7500,11685],[8000,13176],[8500,14665],[9000,16152],[9500,17643],[10000,19132],
-  [10500,19489],[11000,19846],[11500,20203],[12000,20560],[12500,20918],[13000,21276],[13500,21632],[14000,21991],[14500,22348],[15000,22705],
-  [15500,23062],[16000,23418],[16500,23775],[17000,24131],[17500,24488],[18000,24844],[18500,25200],[19000,25557],[19500,25914],[20000,26271],
-  [21000,27319],[22000,28368],[23000,29417],[24000,30466],[25000,31517],[26000,32566],[27000,33616],[28000,34665],[29000,35712],[30000,36752]
-];
-
-// --- DHL Envelope per zone (max 0.3kg) ---
-const dhlEnvelopeRates = { 2:2111, 3:2111, 4:2439, 5:2342, 10:2454, 11:2439 };
-
-// ========== Country Configuration ==========
-const COUNTRIES = [
-  { id:'us', name:'🇺🇸 アメリカ', code:'US', defaultZip:'10001', fedexZone:'F', dhlZone:10, jpZone:4, jpOk:true, elogiZone:'E', upsZone:5, economy:true, ecoMaxKg:25, ecoMaxVal:'$1,300', ecoDays:'8-12日',
-    ecoSizeCheck:(L,W,H,g)=>{ const d=[L,W,H].sort((a,b)=>b-a); return d[0]<=66 && (d[0]+2*(d[1]+d[2]))<=274; },
-    ecoSurcharge:(L,W,H,vol)=>(Math.max(L,W,H)>55.88||vol>55000?2475:0)+245 },
-  { id:'ca', name:'🇨🇦 カナダ', code:'CA', defaultZip:'M5V 2T6', fedexZone:'F', dhlZone:5, jpZone:3, jpOk:true, elogiZone:'F', upsZone:5, economy:false },
-  { id:'uk', name:'🇬🇧 イギリス', code:'GB', defaultZip:'SW1A 1AA', fedexZone:'M', dhlZone:3, jpZone:3, jpOk:true, elogiZone:'H', upsZone:6, economy:true, ecoMaxKg:25, ecoRealMaxKg:15, ecoMaxVal:'£135', ecoDays:'7-10日',
-    ecoSizeCheck:(L,W,H,g)=>{ const d=[L,W,H].sort((a,b)=>b-a); return d[0]<=110 && d[1]<=50 && d[2]<=50; },
-    ecoSurcharge:()=>0 },
-  { id:'eu', name:'🇪🇺 ヨーロッパ (DE/FR等)', code:'DE', defaultZip:'10115', fedexZone:'M', dhlZone:3, jpZone:3, jpOk:true, elogiZone:'H', upsZone:6, economy:true, ecoMaxKg:25, ecoMaxVal:'€150', ecoDays:'7-11日',
-    ecoSizeCheck:(L,W,H,g)=>{ const d=[L,W,H].sort((a,b)=>b-a); return d[0]<=110 && d[1]<=50 && d[2]<=50; },
-    ecoSurcharge:()=>0 },
-  { id:'au', name:'🇦🇺 オーストラリア', code:'AU', defaultZip:'2000', fedexZone:'U', dhlZone:11, jpZone:3, jpOk:true, elogiZone:'U', upsZone:'au', economy:true, ecoMaxKg:22.5, ecoRealMaxKg:22, ecoMaxVal:'AUD1,000', ecoDays:'6-12日',
-    ecoSizeCheck:(L,W,H,g)=>{ const d=[L,W,H].sort((a,b)=>b-a); return d[0]<=105 && (d[0]*d[1]*d[2])<=180000; },
-    ecoSurcharge:()=>0 },
-  { id:'east_asia', name:'🌏 東アジア (韓国/台湾など)', code:'KR', defaultZip:'06100', fedexZone:null, dhlZone:null, jpZone:1, jpOk:true, elogiZone:null, upsZone:null, economy:false },
-  { id:'se_asia', name:'🌏 東南アジア (SG/TH/MY等)', code:'TH', defaultZip:'10100', fedexZone:null, dhlZone:null, jpZone:2, jpOk:true, elogiZone:null, upsZone:null, economy:false },
-];
-
-function getFicpTable(zone) { return zone==='M'?ficpZoneM:zone==='U'?ficpZoneU:speedpakFicpRates; }
-function getIpPackageTable(zone) { return zone==='M'?ipPackageZoneM:zone==='U'?ipPackageZoneU:speedpakIpPackageRates; }
-function getDhlTable(z) { return z===2?dhlZone2:z===3?dhlZone3:z===4?dhlZone4:z===5?dhlZone5:z===11?dhlZone11:speedpakDhlRates; }
-function getDhlEnvelopeRate(z) { return dhlEnvelopeRates[z]||2454; }
-function getEpacketLightTable(jpZone) { return jpZone===1?epacketLightZone1:jpZone===2?epacketLightZone2:jpZone===3?epacketLightZone3:jpZone===4?epacketLightZone4:null; }
-function getEmsTable(jpZone) { return jpZone===1?emsZone1:jpZone===2?emsZone2:jpZone===3?emsZone3:emsZone4; }
-
-// --- 日本郵便 eパケットライト (実重量, 最大2kg) ---
-// 第1地帯: 中国・韓国・台湾
-const epacketLightZone1 = [
-  [100,720],[200,820],[300,920],[400,1020],[500,1120],
-  [600,1220],[700,1320],[800,1420],[900,1520],[1000,1620],
-  [1100,1720],[1200,1820],[1300,1920],[1400,2020],[1500,2120],
-  [1600,2220],[1700,2320],[1800,2420],[1900,2520],[2000,2620]
-];
-// 第2地帯: アジア（中国・韓国・台湾を除く）
-const epacketLightZone2 = [
-  [100,750],[200,870],[300,990],[400,1110],[500,1230],
-  [600,1350],[700,1470],[800,1590],[900,1710],[1000,1830],
-  [1100,1950],[1200,2070],[1300,2190],[1400,2310],[1500,2430],
-  [1600,2550],[1700,2670],[1800,2790],[1900,2910],[2000,3030]
-];
-// 第3地帯: オセアニア・北米(米国除く)・中近東・ヨーロッパ (UK/DE/FR/CA/AU/IT/ES)
-const epacketLightZone3 = [
-  [100,880],[200,1060],[300,1240],[400,1420],[500,1600],
-  [600,1780],[700,1960],[800,2140],[900,2320],[1000,2500],
-  [1100,2680],[1200,2860],[1300,3040],[1400,3220],[1500,3400],
-  [1600,3580],[1700,3760],[1800,3940],[1900,4120],[2000,4300]
-];
-// 第4地帯: アメリカ(グアム等海外領土含む)
-const epacketLightZone4 = [
-  [100,1200],[200,1410],[300,1620],[400,1830],[500,2040],
-  [600,2250],[700,2460],[800,2670],[900,2880],[1000,3090],
-  [1100,3300],[1200,3510],[1300,3720],[1400,3930],[1500,4140],
-  [1600,4350],[1700,4560],[1800,4770],[1900,4980],[2000,5190]
-];
-
-// --- 日本郵便 EMS (実重量, 最大30kg) ---
-// 第1地帯: 中国・韓国・台湾
-const emsZone1 = [
-  [500,1450],[600,1600],[700,1750],[800,1900],[900,2050],
-  [1000,2200],[1250,2500],[1500,2800],[1750,3100],[2000,3400],
-  [2500,3900],[3000,4400],[3500,4900],[4000,5400],[4500,5900],
-  [5000,6400],[5500,6900],[6000,7400],[7000,8200],[8000,9000],
-  [9000,9800],[10000,10600],[11000,11400],[12000,12200],[13000,13000],
-  [14000,13800],[15000,14600],[16000,15400],[17000,16200],[18000,17000],
-  [19000,17800],[20000,18600],[21000,19400],[22000,20200],[23000,21000],
-  [24000,21800],[25000,22600],[26000,23400],[27000,24200],[28000,25000],
-  [29000,25800],[30000,26600]
-];
-// 第2地帯: アジア（中国・韓国・台湾を除く）
-const emsZone2 = [
-  [500,1900],[600,2150],[700,2400],[800,2650],[900,2900],
-  [1000,3150],[1250,3500],[1500,3850],[1750,4200],[2000,4550],
-  [2500,5150],[3000,5750],[3500,6350],[4000,6950],[4500,7550],
-  [5000,8150],[5500,8750],[6000,9350],[7000,10350],[8000,11350],
-  [9000,12350],[10000,13350],[11000,14350],[12000,15350],[13000,16350],
-  [14000,17350],[15000,18350],[16000,19350],[17000,20350],[18000,21350],
-  [19000,22350],[20000,23350],[21000,24350],[22000,25350],[23000,26350],
-  [24000,27350],[25000,28350],[26000,29350],[27000,30350],[28000,31350],
-  [29000,32350],[30000,33350]
-];
-// 第3地帯
-const emsZone3 = [
-  [500,3150],[600,3400],[700,3650],[800,3900],[900,4150],
-  [1000,4400],[1250,5000],[1500,5550],[1750,6150],[2000,6700],
-  [2500,7750],[3000,8800],[3500,9850],[4000,10900],[4500,11950],
-  [5000,13000],[5500,14050],[6000,15100],[7000,17200],[8000,19300],
-  [9000,21400],[10000,23500],[11000,25600],[12000,27700],[13000,29800],
-  [14000,31900],[15000,34000],[16000,36100],[17000,38200],[18000,40300],
-  [19000,42400],[20000,44500],[21000,46600],[22000,48700],[23000,50800],
-  [24000,52900],[25000,55000],[26000,57100],[27000,59200],[28000,61300],
-  [29000,63400],[30000,65500]
-];
-// 第4地帯
-const emsZone4 = [
-  [500,3900],[600,4180],[700,4460],[800,4740],[900,5020],
-  [1000,5300],[1250,5990],[1500,6600],[1750,7290],[2000,7900],
-  [2500,9100],[3000,10300],[3500,11500],[4000,12700],[4500,13900],
-  [5000,15100],[5500,16300],[6000,17500],[7000,19900],[8000,22300],
-  [9000,24700],[10000,27100],[11000,29500],[12000,31900],[13000,34300],
-  [14000,36700],[15000,39100],[16000,41500],[17000,43900],[18000,46300],
-  [19000,48700],[20000,51100],[21000,53500],[22000,55900],[23000,58300],
-  [24000,60700],[25000,63100],[26000,65500],[27000,67900],[28000,70300],
-  [29000,72700],[30000,75100]
-];
-
-// ========== eLogi Rate Tables (US=Column E, サーチャージ込み) ==========
-
-// --- eLogi FICP US (最大99kg, サーチャージ込み) ---
-const elogiFicpUS = [
-  [500,3000],[1000,3400],[1500,3500],[2000,3900],[2500,4200],
-  [3000,4900],[3500,4900],[4000,5500],[4500,6100],[5000,6700],
-  [5500,8100],[6000,8400],[6500,8600],[7000,8900],[7500,9100],
-  [8000,9400],[8500,9600],[9000,9900],[9500,12100],[10000,12400],
-  [10500,12800],[11000,13100],[11500,13400],[12000,13700],
-  [12500,15700],[13000,16100],[13500,16400],[14000,16800],
-  [14500,17200],[15000,17500],[15500,17900],[16000,20100],
-  [16500,20500],[17000,21000],[17500,21400],[18000,21800],
-  [18500,22200],[19000,22600],[19500,23000],[20000,23400],
-  [20500,23800],[21000,26400],[21500,27100],[22000,27700],
-  [22500,28400],[23000,29100],[23500,29700],[24000,30400],
-  [24500,31100],[25000,31700],[25500,32400],[26000,33100],
-  [26500,33700],[27000,34400],[27500,35100],[28000,35700],
-  [28500,36400],[29000,37100],[29500,37700],[30000,38400],
-  [30500,39100],[31000,39700],[31500,40400],[32000,41100],[32500,41700]
-];
-// Per-kg tiers: 33-44:¥1,303/kg, 45-70:¥1,176/kg, 71-99:¥1,158/kg
-const elogiFicpUSPerKg = [[44,1303],[70,1176],[99,1158]];
-
-// --- eLogi IP Package US (最大99kg, サーチャージ込み) ---
-const elogiIpPackageUS = [
-  [500,3300],[1000,3100],[1500,3500],[2000,3900],[2500,4400],
-  [3000,4500],[3500,5200],[4000,5800],[4500,6500],[5000,7200],
-  [5500,8800],[6000,9000],[6500,9200],[7000,9400],[7500,9600],
-  [8000,9800],[8500,10100],[9000,10300],[9500,10500],[10000,10700],
-  [10500,13700],[11000,13900],[11500,14100],[12000,14400],
-  [12500,14600],[13000,14900],[13500,15100],[14000,15300],
-  [14500,15600],[15000,15800],[15500,16100],[16000,16300],
-  [16500,16600],[17000,16800],[17500,17000],[18000,17300],
-  [18500,17500],[19000,17800],[19500,18000],[20000,18200],
-  [20500,18500]
-];
-// Per-kg tiers: 21-44:¥1,342/kg, 45-70:¥1,271/kg, 71-99:¥1,257/kg
-const elogiIpPackageUSPerKg = [[44,1342],[70,1271],[99,1257]];
-
-// --- eLogi IP Envelope US (最大0.5kg, サーチャージ込み) ---
-const elogiIpEnvelopeUS = 2900;
-
-// --- eLogi IP Pak US (最大2.5kg, サーチャージ込み) ---
-const elogiIpPakUS = [
-  [500,3300],[1000,4000],[1500,4500],[2000,5000],[2500,5600]
-];
-
-// --- eLogi FICP Zone F (CA/北米, サーチャージ込み) ---
-const elogiFicpF = [
-  [500,3100],[1000,3500],[1500,3600],[2000,3900],[2500,4200],[3000,4900],[3500,5000],[4000,5600],[4500,6200],[5000,6800],
-  [5500,8200],[6000,8500],[6500,8800],[7000,9000],[7500,9300],[8000,9500],[8500,9800],[9000,10100],[9500,12300],[10000,12600],
-  [10500,13000],[11000,13300],[11500,13700],[12000,14000],[12500,15800],[13000,16200],[13500,16600],[14000,17000],[14500,17400],[15000,17800],
-  [15500,18200],[16000,20300],[16500,20700],[17000,21100],[17500,21500],[18000,22000],[18500,22400],[19000,22800],[19500,23200],[20000,23700],
-  [20500,24100],[21000,28600],[21500,29300],[22000,30000],[22500,30700],[23000,31400],[23500,32100],[24000,32900],[24500,33600],[25000,34300],
-  [25500,35000],[26000,35700],[26500,36400],[27000,37100],[27500,37900],[28000,38600],[28500,39300],[29000,40000],[29500,40700],[30000,41400],
-  [30500,42100],[31000,42800],[31500,43600],[32000,44300],[32500,45000]
-];
-const elogiFicpFPerKg = [[44,1405],[70,1294],[99,1271]];
-
-// --- eLogi FICP Zone H (ヨーロッパ UK/DE/FR/IT/ES, サーチャージ込み) ---
-const elogiFicpH = [
-  [500,3300],[1000,3700],[1500,4000],[2000,4500],[2500,5000],[3000,5600],[3500,5700],[4000,6200],[4500,6700],[5000,7200],
-  [5500,8700],[6000,9000],[6500,9400],[7000,9700],[7500,10100],[8000,10400],[8500,10800],[9000,11200],[9500,13600],[10000,14000],
-  [10500,14300],[11000,14600],[11500,14800],[12000,15100],[12500,17800],[13000,18100],[13500,18400],[14000,18700],[14500,19100],[15000,19400],
-  [15500,19700],[16000,22800],[16500,23200],[17000,23600],[17500,24000],[18000,24300],[18500,24700],[19000,25100],[19500,25500],[20000,25900],
-  [20500,26200],[21000,29300],[21500,30000],[22000,30800],[22500,31500],[23000,32300],[23500,33000],[24000,33700],[24500,34500],[25000,35200],
-  [25500,36000],[26000,36700],[26500,37500],[27000,38200],[27500,38900],[28000,39700],[28500,40400],[29000,41200],[29500,41900],[30000,42700],
-  [30500,43400],[31000,44100],[31500,44900],[32000,45600],[32500,46400]
-];
-const elogiFicpHPerKg = [[44,1443],[70,1278],[99,1270]];
-
-// --- eLogi FICP Zone U (AU, サーチャージ込み) ---
-const elogiFicpU = [
-  [500,4000],[1000,4400],[1500,4400],[2000,4900],[2500,5400],[3000,5800],[3500,6200],[4000,6600],[4500,7100],[5000,7500],
-  [5500,7800],[6000,8200],[6500,8700],[7000,9100],[7500,9600],[8000,10000],[8500,10400],[9000,10900],[9500,12200],[10000,12700],
-  [10500,13100],[11000,13500],[11500,13800],[12000,14200],[12500,30900],[13000,31700],[13500,32500],[14000,33300],[14500,34100],[15000,34900],
-  [15500,35700],[16000,36500],[16500,37300],[17000,38100],[17500,38900],[18000,39700],[18500,40500],[19000,41300],[19500,42100],[20000,43000],
-  [20500,43800],[21000,41800],[21500,42800],[22000,43900],[22500,45000],[23000,46000],[23500,47100],[24000,48200],[24500,49200],[25000,50300],
-  [25500,51300],[26000,52400],[26500,53500],[27000,54500],[27500,55600],[28000,56700],[28500,57700],[29000,58800],[29500,59900],[30000,60900],
-  [30500,62000],[31000,63100],[31500,64100],[32000,65200],[32500,66300]
-];
-const elogiFicpUPerKg = [[44,1907],[70,1677],[99,1664]];
-
-// --- eLogi IP Package Zone F (CA/北米, サーチャージ込み) ---
-const elogiIpPackageF = [
-  [500,3300],[1000,3100],[1500,3500],[2000,4000],[2500,4400],[3000,4500],[3500,5200],[4000,5900],[4500,6600],[5000,7300],
-  [5500,8900],[6000,9100],[6500,9300],[7000,9600],[7500,9800],[8000,10000],[8500,10200],[9000,10400],[9500,10700],[10000,10900],
-  [10500,13800],[11000,14100],[11500,14300],[12000,14600],[12500,14800],[13000,15100],[13500,15300],[14000,15600],[14500,15800],[15000,16100],
-  [15500,16300],[16000,16600],[16500,16800],[17000,17100],[17500,17300],[18000,17500],[18500,17800],[19000,18000],[19500,18300],[20000,18500],[20500,18800]
-];
-const elogiIpPackageFPerKg = [[44,1454],[70,1400],[99,1382]];
-
-// --- eLogi IP Package Zone H (ヨーロッパ, サーチャージ込み) ---
-const elogiIpPackageH = [
-  [500,3500],[1000,3300],[1500,4000],[2000,4600],[2500,5300],[3000,5400],[3500,5900],[4000,6500],[4500,7100],[5000,7700],
-  [5500,9400],[6000,9700],[6500,10000],[7000,10300],[7500,10700],[8000,11000],[8500,11300],[9000,11600],[9500,11900],[10000,12200],
-  [10500,15200],[11000,15400],[11500,15600],[12000,15800],[12500,16100],[13000,16300],[13500,16500],[14000,16700],[14500,16900],[15000,17100],
-  [15500,17400],[16000,17600],[16500,17800],[17000,18000],[17500,18200],[18000,18400],[18500,18700],[19000,18900],[19500,19100],[20000,19200],[20500,19200]
-];
-const elogiIpPackageHPerKg = [[44,1488],[70,1393],[99,1378]];
-
-// --- eLogi IP Package Zone U (AU, サーチャージ込み) ---
-const elogiIpPackageU = [
-  [500,6200],[1000,7100],[1500,8400],[2000,9600],[2500,10900],[3000,11500],[3500,12700],[4000,13900],[4500,15000],[5000,16200],
-  [5500,18700],[6000,19600],[6500,20400],[7000,21200],[7500,22100],[8000,22900],[8500,23800],[9000,24600],[9500,25500],[10000,26300],
-  [10500,32300],[11000,32900],[11500,33500],[12000,34100],[12500,34800],[13000,35400],[13500,36000],[14000,36600],[14500,37200],[15000,37800],
-  [15500,38500],[16000,39100],[16500,39700],[17000,40300],[17500,40900],[18000,41500],[18500,42200],[19000,42800],[19500,43400],[20000,44000],[20500,44600]
-];
-const elogiIpPackageUPerKg = [[44,2126],[70,1756],[99,1737]];
-
-// --- eLogi IP Envelope per zone (サーチャージ込み) ---
-const elogiIpEnvelopeF = 2900;
-const elogiIpEnvelopeH = 3000;
-const elogiIpEnvelopeU = 4200;
-
-// --- eLogi IP Pak Zone F/H/U (サーチャージ込み) ---
-const elogiIpPakF = [[500,3400],[1000,4000],[1500,4600],[2000,5100],[2500,5700]];
-const elogiIpPakH = [[500,2900],[1000,3600],[1500,4500],[2000,5500],[2500,6400]];
-const elogiIpPakU = [[500,5300],[1000,6400],[1500,7500],[2000,8500],[2500,9700]];
-
-// --- eLogi UPS Express Saver US (Zone 5, サーチャージ込み) ---
-const elogiUpsUS = [
-  [500,3600],[1000,4000],[1500,4100],[2000,4700],[2500,5200],[3000,5800],[3500,6500],[4000,7100],[4500,7600],[5000,8100],
-  [5500,9800],[6000,10100],[6500,10500],[7000,10800],[7500,11200],[8000,11400],[8500,11600],[9000,11900],[9500,12200],[10000,12500],
-  [10500,12700],[11000,13000],[11500,13200],[12000,13400],[12500,13600],[13000,13800],[13500,14100],[14000,14300],[14500,14500],[15000,14900],
-  [15500,15100],[16000,15300],[16500,15600],[17000,15800],[17500,16000],[18000,16300],[18500,16500],[19000,16700],[19500,16900],[20000,17300]
-];
-const elogiUpsUSPerKg = [[54,1267],[70,1258],[99,1188]];
-
-// --- eLogi UPS Express Saver AU (アジア太平洋特別料金, サーチャージ込み) ---
-const elogiUpsAU = [
-  [500,2400],[1000,2500],[1500,2600],[2000,2900],[2500,3600],[3000,4300],[3500,5000],[4000,5700],[4500,6300],[5000,7000],
-  [5500,7700],[6000,8400],[6500,9100],[7000,9800],[7500,10400],[8000,11100],[8500,11800],[9000,12500],[9500,13200],[10000,13900],
-  [10500,14500],[11000,15200],[11500,15900],[12000,16600],[12500,17300],[13000,18000],[13500,18600],[14000,19300],[14500,20000],[15000,20700],
-  [15500,21400],[16000,22100],[16500,22700],[17000,23400],[17500,24100],[18000,24800],[18500,25500],[19000,26200],[19500,26900],[20000,27600]
-];
-const elogiUpsAUPerKg = [[44,1384],[54,1397],[99,1383]];
-
-// --- eLogi UPS Express Saver Zone 6 (UK/DE/FR/IT/ES, サーチャージ込み) ---
-const elogiUpsZone6 = [
-  [500,2700],[1000,3900],[1500,4500],[2000,5300],[2500,6100],[3000,6800],[3500,7700],[4000,8400],[4500,9200],[5000,9900],
-  [5500,13100],[6000,14000],[6500,14600],[7000,15400],[7500,16100],[8000,16400],[8500,16700],[9000,17000],[9500,17400],[10000,17700],
-  [10500,18000],[11000,18400],[11500,18700],[12000,19100],[12500,19500],[13000,19800],[13500,20100],[14000,20500],[14500,20800],[15000,21200],
-  [15500,21400],[16000,21400],[16500,21500],[17000,21500],[17500,21500],[18000,21600],[18500,21600],[19000,21700],[19500,21800],[20000,21800]
-];
-const elogiUpsZone6PerKg = [[54,1391],[70,1364],[99,1253]];
-
-// eLogi zone lookup helpers
-function getElogiFicpData(z) { return z==='E'?[elogiFicpUS,elogiFicpUSPerKg]:z==='F'?[elogiFicpF,elogiFicpFPerKg]:z==='H'?[elogiFicpH,elogiFicpHPerKg]:z==='U'?[elogiFicpU,elogiFicpUPerKg]:null; }
-function getElogiIpPkgData(z) { return z==='E'?[elogiIpPackageUS,elogiIpPackageUSPerKg]:z==='F'?[elogiIpPackageF,elogiIpPackageFPerKg]:z==='H'?[elogiIpPackageH,elogiIpPackageHPerKg]:z==='U'?[elogiIpPackageU,elogiIpPackageUPerKg]:null; }
-function getElogiIpEnvRate(z) { return z==='E'?elogiIpEnvelopeUS:z==='F'?elogiIpEnvelopeF:z==='H'?elogiIpEnvelopeH:z==='U'?elogiIpEnvelopeU:0; }
-function getElogiIpPakTable(z) { return z==='E'?elogiIpPakUS:z==='F'?elogiIpPakF:z==='H'?elogiIpPakH:z==='U'?elogiIpPakU:null; }
-function getElogiUpsData(z) { return z===5?[elogiUpsUS,elogiUpsUSPerKg]:z===6?[elogiUpsZone6,elogiUpsZone6PerKg]:z==='au'?[elogiUpsAU,elogiUpsAUPerKg]:null; }
-
-// eLogi lookup: テーブル→per-kgティアのフォールバック付き
-function elogiLookup(table, perKgTiers, weightG) {
-  // テーブル内にあればそのまま返す
-  const r = lookupRate(table, weightG);
-  if (r > 0) return r;
-  // per-kgティアで計算
-  if (!perKgTiers) return -1;
-  const kg = Math.ceil(weightG / 1000);
-  for (let i = 0; i < perKgTiers.length; i++) {
-    if (kg <= perKgTiers[i][0]) return kg * perKgTiers[i][1];
-  }
-  return -1;
-}
-
-// ========== Utility Functions ==========
-
-function lookupRate(table, weightGrams) {
-  for (let i = 0; i < table.length; i++) {
-    if (weightGrams <= table[i][0]) return table[i][1];
-  }
-  return -1;
-}
-
-function getVal(id) { return parseFloat(document.getElementById(id).value.replace(/,/g,'')) || 0; }
-function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
-function fmtD(n) { return n.toFixed(2); }
-
-const currentSort = 'profit';
-let currentCountry = 'us';
-let currentPricingMode = 'us';
-let compShippingCurrency = 'usd'; // 'usd' or 'jpy'
-
-function setCompShippingCurrency(curr) {
-  compShippingCurrency = curr;
-  document.getElementById('compCurrUsd').classList.toggle('active', curr === 'usd');
-  document.getElementById('compCurrJpy').classList.toggle('active', curr === 'jpy');
-  calculate();
-  saveState();
-}
-
-function getCompShippingUsd() {
-  const val = getVal('compShipping');
-  if (compShippingCurrency === 'jpy') {
-    const rate = getVal('exchangeRate');
-    return rate > 0 ? val / rate : 0;
-  }
-  return val;
-}
-
-function initCountrySelector() {
-  const sel = document.getElementById('destCountry');
-  COUNTRIES.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.name;
-    sel.appendChild(opt);
-  });
-  sel.value = 'us';
-}
-
-function onCountryChange() {
-  currentCountry = document.getElementById('destCountry').value;
-  _speedpakRates = null; // 前の国のレートをクリア
-  calculate();
-  saveState();
-  fetchSpeedpakRates(); // 国変更は即座にAPI取得（デバウンスなし）
-}
-
-function setPricingMode(mode) {
-  currentPricingMode = mode;
-  document.getElementById('modeUs').classList.toggle('active', mode === 'us');
-  document.getElementById('modeOther').classList.toggle('active', mode === 'other');
-  document.getElementById('usSection').style.display = mode === 'us' ? '' : 'none';
-  document.getElementById('otherSection').style.display = mode === 'other' ? '' : 'none';
-  updatePricingDisplay();
-  calculate();
-  saveState();
-}
-
-function getEffectiveSellingPrice() {
-  const selling = getVal('sellingPrice');
-  if (currentPricingMode === 'us') {
-    // アメリカ向けモード: 競合最安値 + 競合送料 − $0.01
-    const compShipping = getCompShippingUsd();
-    const compTotal = selling + compShipping;
-    if (compTotal <= 0) return 0;
-    const total = Math.round((compTotal - 0.01) * 100) / 100;
-    // 配送先がアメリカ以外の場合、商品価格（÷1.184）のみが収入
-    if (currentCountry !== 'us' && total <= 2499.99) {
-      return Math.round((total / 1.184) * 100) / 100;
-    }
-    return total;
-  } else {
-    // アメリカ以外モード: 競合最安値 − $0.01
-    if (selling <= 0) return 0;
-    const base = Math.round((selling - 0.01) * 100) / 100;
-    // 配送先がアメリカの場合、🇺🇸送料%分が加算される
-    if (currentCountry === 'us') {
-      const usShippingPct = getVal('usShippingPct') / 100;
-      const usShipping = Math.round(selling * usShippingPct * 100) / 100;
-      return Math.round((base + usShipping) * 100) / 100;
-    }
-    return base;
-  }
-}
-
-function updatePricingDisplay() {
-  const selling = getVal('sellingPrice');
-  if (currentPricingMode === 'us') {
-    const compShipping = getCompShippingUsd();
-    const compTotal = selling + compShipping;
-    const total = compTotal > 0 ? Math.round((compTotal - 0.01) * 100) / 100 : 0;
-    // ÷1.184分割（$2,500超は分割しない）
-    if (total > 0) {
-      if (total > 2499.99) {
-        document.getElementById('listPrice').textContent = '$' + fmtD(total);
-        document.getElementById('listShipping').textContent = '$0.00';
-      } else {
-        const itemPrice = Math.round((total / 1.184) * 100) / 100;
-        const usShipping = Math.round((total - itemPrice) * 100) / 100;
-        document.getElementById('listPrice').textContent = '$' + fmtD(itemPrice);
-        document.getElementById('listShipping').textContent = '$' + fmtD(usShipping);
-      }
-    } else {
-      document.getElementById('listPrice').textContent = '-';
-      document.getElementById('listShipping').textContent = '-';
-    }
-  } else {
-    // 🇺🇸送料参考額（競合最安値 × 入力%）
-    const usShippingPct = getVal('usShippingPct') / 100;
-    const usShippingRef = selling > 0 ? Math.round(selling * usShippingPct * 100) / 100 : 0;
-    document.getElementById('usShippingRef').textContent = usShippingRef > 0 ? '$' + fmtD(usShippingRef) : '-';
-  }
-}
-
-function toggleSettings() {
-  const c = document.getElementById('settingsContent');
-  const b = document.getElementById('settingsToggle');
-  if (c.classList.contains('show')) {
-    c.classList.remove('show');
-    b.textContent = '詳細設定 ▼';
-    b.classList.remove('active');
-  } else {
-    c.classList.add('show');
-    b.textContent = '詳細設定 ▲';
-    b.classList.add('active');
-  }
-}
-
-function toggleFeeDetail() {
-  const c = document.getElementById('feeDetailContent');
-  const b = document.getElementById('feeToggle');
-  if (c.classList.contains('show')) {
-    c.classList.remove('show');
-    b.textContent = '手数料内訳 ▼';
-    b.classList.remove('active');
-  } else {
-    c.classList.add('show');
-    b.textContent = '手数料内訳 ▲';
-    b.classList.add('active');
-  }
-}
-
-const RATE_CACHE_KEY = 'exchange_rate_jpy';
-const RATE_CACHE_TIME_KEY = 'exchange_rate_time';
-const RATE_CACHE_TTL = 6 * 60 * 60 * 1000; // 6時間キャッシュ
-
-async function fetchRate(silent) {
-  const statusEl = document.getElementById('rateStatus');
-  if (statusEl) statusEl.textContent = '取得中...';
-  try {
-    const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD', { signal: AbortSignal.timeout(10000) });
-    const d = await r.json();
-    if (d.rates && d.rates.JPY) {
-      const rate = d.rates.JPY.toFixed(4);
-      document.getElementById('exchangeRate').value = rate;
-      localStorage.setItem(RATE_CACHE_KEY, rate);
-      localStorage.setItem(RATE_CACHE_TIME_KEY, Date.now());
-      if (statusEl) statusEl.textContent = '✓ ¥' + rate + '/$ (自動取得)';
-      calculate();
-    } else {
-      throw new Error('データなし');
-    }
-  } catch(e) {
-    const cached = localStorage.getItem(RATE_CACHE_KEY);
-    if (cached) {
-      const age = Date.now() - (parseInt(localStorage.getItem(RATE_CACHE_TIME_KEY)) || 0);
-      const hours = Math.floor(age / (60*60*1000));
-      if (statusEl) statusEl.textContent = '⚠ ¥' + cached + ' (' + hours + '時間前)';
-    } else {
-      if (statusEl) statusEl.textContent = '⚠ 取得失敗';
-    }
-  }
-}
-
-function initExchangeRate() {
-  const cached = localStorage.getItem(RATE_CACHE_KEY);
-  const cachedTime = parseInt(localStorage.getItem(RATE_CACHE_TIME_KEY)) || 0;
-  const age = Date.now() - cachedTime;
-  if (cached && age < RATE_CACHE_TTL) {
-    document.getElementById('exchangeRate').value = cached;
-    const statusEl = document.getElementById('rateStatus');
-    if (statusEl) statusEl.textContent = '✓ ¥' + cached + '/$ (キャッシュ)';
-  }
-  // キャッシュ有無に関わらず常にバックグラウンドで最新値を取得
-  fetchRate(true);
-}
-
-// ========== Fuel Surcharge Auto-Fetch (EIA API経由) ==========
-// FedEx Express International Export 燃料割増金テーブル (Effective Dec 1, 2025)
-// USGC Kerosene-Type Jet Fuel $/gallon → サーチャージ%
-// 国際輸出用: 国内テーブルより約2.5%高い
-// $2.120 → 30.50% (FedEx公式 2026年2月16-22日週で確認済み)
-// $0.05刻みで0.5%ずつ変動
-const FUEL_TABLE = [
-  [1.36, 23.0],[1.41, 23.5],[1.46, 24.0],[1.51, 24.5],[1.56, 25.0],
-  [1.61, 25.5],[1.66, 26.0],[1.71, 26.5],[1.76, 27.0],[1.81, 27.5],
-  [1.86, 28.0],[1.91, 28.5],[1.96, 29.0],[2.01, 29.5],[2.06, 30.0],
-  [2.11, 30.5],[2.16, 31.0],[2.21, 31.5],[2.26, 32.0],[2.31, 32.5],
-  [2.36, 33.0],[2.41, 33.5],[2.46, 34.0],[2.51, 34.5],[2.56, 35.0],
-  [2.61, 35.5],[2.66, 36.0],[2.71, 36.5],[2.76, 37.0],[2.81, 37.5],
-  [2.86, 38.0],[2.91, 38.5],[2.96, 39.0],[3.01, 39.5],[3.06, 40.0],
-];
-const FUEL_CACHE_KEY = 'fedex_fuel_surcharge';
-const FUEL_CACHE_TIME_KEY = 'fedex_fuel_surcharge_time';
-const FUEL_CACHE_PRICE_KEY = 'fedex_fuel_price';
-const FUEL_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7日キャッシュ（EIAは週次更新）
-
-function _fuelPriceToSurcharge(pricePerGallon) {
-  for (let i = FUEL_TABLE.length - 1; i >= 0; i--) {
-    if (pricePerGallon >= FUEL_TABLE[i][0]) return FUEL_TABLE[i][1];
-  }
-  return FUEL_TABLE[0][1]; // 最低値
-}
-
-async function _fetchJetFuelPrice() {
-  // EIA API: USGC Kerosene-Type Jet Fuel Spot Price (週次)
-  const url = 'https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=DEMO_KEY&frequency=weekly&data[0]=value&facets[series][]=EER_EPJK_PF4_RGC_DPG&sort[0][column]=period&sort[0][direction]=desc&length=1';
-  const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
-  const d = await r.json();
-  if (d.response && d.response.data && d.response.data.length > 0) {
-    return { price: parseFloat(d.response.data[0].value), date: d.response.data[0].period };
-  }
-  return null;
-}
-
-async function fetchFuelSurcharge(silent) {
-  const statusEl = document.getElementById('fuelStatus');
-  if (statusEl) statusEl.textContent = '取得中...';
-  try {
-    const result = await _fetchJetFuelPrice();
-    if (result) {
-      const surcharge = _fuelPriceToSurcharge(result.price);
-      document.getElementById('fuelSurcharge').value = surcharge;
-      localStorage.setItem(FUEL_CACHE_KEY, surcharge);
-      localStorage.setItem(FUEL_CACHE_PRICE_KEY, result.price);
-      localStorage.setItem(FUEL_CACHE_TIME_KEY, Date.now());
-      if (statusEl) statusEl.textContent = '✓ ' + surcharge + '% (燃料$' + result.price.toFixed(3) + '/gal ' + result.date + ')';
-      calculate();
-      if (!silent) alert('FedEx燃油サーチャージ: ' + surcharge + '%\n(ジェット燃料: $' + result.price.toFixed(3) + '/gal, ' + result.date + '週)');
-    } else {
-      throw new Error('データなし');
-    }
-  } catch(e) {
-    const cached = localStorage.getItem(FUEL_CACHE_KEY);
-    if (cached) {
-      const age = Date.now() - (parseInt(localStorage.getItem(FUEL_CACHE_TIME_KEY)) || 0);
-      const days = Math.floor(age / (24*60*60*1000));
-      if (statusEl) statusEl.textContent = '⚠ ' + cached + '% (' + days + '日前)';
-    } else {
-      if (statusEl) statusEl.textContent = '⚠ 取得失敗';
-    }
-    if (!silent) alert('自動取得できませんでした。\n手動で入力してください。\n\n現在の値: ' + document.getElementById('fuelSurcharge').value + '%');
-  }
-}
-
-function initFuelSurcharge() {
-  const cached = localStorage.getItem(FUEL_CACHE_KEY);
-  const cachedTime = parseInt(localStorage.getItem(FUEL_CACHE_TIME_KEY)) || 0;
-  const age = Date.now() - cachedTime;
-  if (cached && age < FUEL_CACHE_TTL) {
-    document.getElementById('fuelSurcharge').value = cached;
-    const price = localStorage.getItem(FUEL_CACHE_PRICE_KEY) || '?';
-    const statusEl = document.getElementById('fuelStatus');
-    if (statusEl) statusEl.textContent = '✓ ' + cached + '% (燃料$' + price + '/gal)';
-  }
-  // キャッシュ有無に関わらず常にバックグラウンドで最新値を取得
-  fetchFuelSurcharge(true);
-}
-
-// ========== SpeedPAK API Integration ==========
-const SPEEDPAK_API_BASE = 'https://speedpak-api.vercel.app';
-let _speedpakRates = null;      // APIレスポンスの rates オブジェクト
-let _speedpakLoading = false;   // API取得中フラグ
-let _speedpakDebounceTimer = null;
-
-async function fetchSpeedpakRates() {
-  const weightKg = getVal('weight');
-  const L = getVal('length');
-  const W = getVal('width');
-  const H = getVal('height');
-  const weightG = weightKg * 1000;
-  if (weightG <= 0 || L <= 0 || W <= 0 || H <= 0) return;
-
-  // declaredValue: モードに関係なく出品合計を使用
-  const rawSelling = getVal('sellingPrice');
-  let declaredUsd;
-  if (currentPricingMode === 'us') {
-    const compShipping = getCompShippingUsd();
-    declaredUsd = rawSelling + compShipping > 0 ? Math.round((rawSelling + compShipping - 0.01) * 100) / 100 : 0;
-  } else {
-    declaredUsd = rawSelling > 0 ? Math.round((rawSelling - 0.01) * 100) / 100 : 0;
-  }
-  const cc = COUNTRIES.find(c => c.id === currentCountry) || COUNTRIES[0];
-
-  _speedpakLoading = true;
-  calculate(); // ローディング状態を反映
-
-  try {
-    const reqBody = {
-      weight: weightG,
-      length: L,
-      width: W,
-      height: H,
-      destCountry: cc.code,
-      destZipCode: cc.defaultZip,
-      declaredValueUsd: declaredUsd > 0 ? declaredUsd : undefined
-    };
-    console.log('[SpeedPAK API Request]', reqBody);
-    const res = await fetch(SPEEDPAK_API_BASE + '/api/speedpak/estimate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reqBody)
-    });
-    const data = await res.json();
-    console.log('[SpeedPAK API Response]', data);
-    if (data.success) {
-      _speedpakRates = data.rates;
-      // 燃油サーチャージも自動更新
-      if (data.fuelSurchargePercent !== undefined) {
-        document.getElementById('fuelSurcharge').value = data.fuelSurchargePercent;
-        const statusEl = document.getElementById('fuelStatus');
-        if (statusEl) statusEl.textContent = '✓ ' + data.fuelSurchargePercent + '% (SpeedPAK API)';
-      }
-    } else {
-      _speedpakRates = null;
-    }
-  } catch(e) {
-    console.warn('SpeedPAK API error:', e);
-    _speedpakRates = null;
-  } finally {
-    _speedpakLoading = false;
-    calculate();
-    saveState();
-  }
-}
-
-function debouncedFetchSpeedpak() {
-  if (_speedpakDebounceTimer) clearTimeout(_speedpakDebounceTimer);
-  _speedpakDebounceTimer = setTimeout(fetchSpeedpakRates, 500);
-}
-
-// SpeedPAK送料取得ヘルパー：totalAmount（関税込み合計）を返す
-function spCost(apiKey) {
-  if (_speedpakRates && _speedpakRates[apiKey] && _speedpakRates[apiKey].totalAmount !== undefined) {
-    return _speedpakRates[apiKey].totalAmount;
-  }
-  return null;
-}
-// SpeedPAK関税額取得ヘルパー：任意の有効な配送方法からdutyAmountを取得（全方法共通のため）
-function spDuty() {
-  if (!_speedpakRates) return 0;
-  for (const key of ['dhl','ip_pak','ip','dhl_envelope']) {
-    const r = _speedpakRates[key];
-    if (r && r.dutyAmount > 0) return r.dutyAmount;
-  }
-  return 0;
-}
-// SpeedPAK関税系feeDetails取得ヘルパー：関税・手数料の内訳を他の配送方法から取得
-function spDutyDetails() {
-  if (!_speedpakRates) return [];
-  for (const key of ['dhl','ip_pak','ip','dhl_envelope']) {
-    const r = _speedpakRates[key];
-    if (r && r.dutyAmount > 0 && r.feeDetails) {
-      return r.feeDetails.filter(d => d.freight > 0 && d.tariffCategoryType);
-    }
-  }
-  return [];
-}
-
-// SpeedPAK送料内訳取得ヘルパー：feeDetails配列を返す
-function spFeeDetails(apiKey) {
-  if (_speedpakRates && _speedpakRates[apiKey] && _speedpakRates[apiKey].feeDetails) {
-    return _speedpakRates[apiKey].feeDetails;
-  }
-  return null;
-}
-
-// 送料内訳ポップアップ開閉
-function toggleFeePopup(btn) {
-  const row = btn.closest('.method-row');
-  const popup = row.querySelector('.fee-popup');
-  if (!popup) return;
-  const isOpen = popup.style.display !== 'none';
-  // 他のポップアップを閉じる
-  document.querySelectorAll('.fee-popup').forEach(p => p.style.display = 'none');
-  if (!isOpen) popup.style.display = 'block';
-}
-// 外側クリックでポップアップを閉じる
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.fee-popup') && !e.target.closest('.fee-detail-btn')) {
-    document.querySelectorAll('.fee-popup').forEach(p => p.style.display = 'none');
-  }
-});
-
-// ========== FVF Calculation Helper ==========
-function calcFVFBase(amount, grp, ebayRate1, threshold, ebayRate2, perOrder) {
-  let fvfBase = 0;
-  let effectivePerOrder = perOrder;
-  if (amount <= 10) effectivePerOrder = 0.30;
-
-  if (grp.special === 'shoes') {
-    if (amount >= grp.threshold) {
-      fvfBase = amount * (grp.rate_high / 100);
-      effectivePerOrder = 0;
-    } else {
-      fvfBase = amount * (grp.rate_low / 100);
-    }
-  } else if (grp.tiers) {
-    let remaining = amount;
-    let prevLimit = 0;
-    for (const [rate, limit] of grp.tiers) {
-      const bandLimit = limit === Infinity ? remaining : Math.min(remaining, limit - prevLimit);
-      if (bandLimit <= 0) break;
-      fvfBase += bandLimit * (rate / 100);
-      remaining -= bandLimit;
-      prevLimit = limit;
-      if (remaining <= 0) break;
-    }
-  } else {
-    if (amount <= threshold) {
-      fvfBase = amount * ebayRate1;
-    } else {
-      fvfBase = threshold * ebayRate1 + (amount - threshold) * ebayRate2;
-    }
-  }
-  return { fvfBase, effectivePerOrder };
-}
-
-// ========== Main Calculation ==========
-
-function calculate() {
-  updatePricingDisplay();
-  updateFeeDescription();
-  const purchase = getVal('purchasePrice');
-  const selling = getEffectiveSellingPrice();
-  const weightKg = getVal('weight');
-  const L = getVal('length');
-  const W = getVal('width');
-  const H = getVal('height');
-
-  const ebayRate1 = getVal('ebayFeeRate') / 100;
-  const threshold = getVal('feeThreshold');
-  const ebayRate2 = getVal('ebayFeeRate2') / 100;
-  const perOrder = getVal('perOrderFee');
-  const promotedRate = getVal('promotedRate') / 100;
-  const intlRate = getVal('intlFeeRate') / 100;
-  const payoneerRate = getVal('payoneerRate') / 100;
-  const rate = getVal('exchangeRate');
-  const taxRate = getVal('taxRate') / 100;
-  const taxMultiplier = 1 + taxRate;
-  const fuelSurchargeRate = getVal('fuelSurcharge') / 100; // 燃油サーチャージ率
-
-  const vol = L * W * H;
-  const volWeight = vol / 5000;
-  const volWeightEco = vol / 8000;
-
-  document.getElementById('volWeight').textContent = volWeight.toFixed(3) + ' kg';
-  document.getElementById('volWeightEco').textContent = volWeightEco.toFixed(3) + ' kg';
-
-  // eBay FVF: support multi-tier and special categories
-  const plan = FEE_RATES[currentStorePlan];
-  const grp = plan[currentFeeGroup] || plan['default'];
-  const fvfResult = calcFVFBase(selling, grp, ebayRate1, threshold, ebayRate2, perOrder);
-  const fvfBase = fvfResult.fvfBase;
-  const effectivePerOrder = fvfResult.effectivePerOrder;
-  const ebayFvf = (fvfBase + effectivePerOrder) * taxMultiplier;
-  const promotedFee = selling * promotedRate * taxMultiplier;
-  const intlFee = selling * intlRate * taxMultiplier;
-  const totalEbayDeductions = ebayFvf + promotedFee + intlFee;
-  const netPayout = selling - totalEbayDeductions;
-  const payoneerFee = netPayout * payoneerRate;
-  const netReceived = netPayout * (1 - payoneerRate) * rate;
-  const revenueYen = selling * rate;
-  const totalFeesYen = revenueYen - netReceived;
-
-  const purchaseTax = purchase * taxRate / taxMultiplier;
-  const ebayFeeTaxPortion = totalEbayDeductions / taxMultiplier * taxRate * rate;
-  const totalRefund = purchaseTax + ebayFeeTaxPortion;
-
-  document.getElementById('revenueYen').textContent = '¥' + fmt(revenueYen) + '（$' + fmtD(selling) + '）';
-  document.getElementById('totalFeesYen').textContent = '¥' + fmt(totalFeesYen);
-  document.getElementById('feeEbay').textContent = '$' + fmtD(ebayFvf);
-  document.getElementById('feeEbayDetail').textContent = '($' + fmtD(fvfBase) + ' + $' + fmtD(effectivePerOrder) + '/注文) 税込';
-  document.getElementById('feePromoted').textContent = '$' + fmtD(promotedFee);
-  document.getElementById('feeIntl').textContent = '$' + fmtD(intlFee);
-  document.getElementById('feePayoneer').textContent = '$' + fmtD(payoneerFee) + '（¥' + fmt(payoneerFee * rate) + '）';
-  document.getElementById('feeTotalUsd').textContent = '$' + fmtD(totalEbayDeductions + payoneerFee) + '（¥' + fmt(totalFeesYen) + '）';
-
-  // ========== Shipping Methods ==========
-  const weightG = weightKg * 1000;
-  // FedEx公式仕様: 寸法は整数cmに切り上げ、長さ=最長辺、幅=中央辺、高さ=最短辺
-  const fedexDims = [Math.ceil(L), Math.ceil(W), Math.ceil(H)].sort((a,b) => b-a);
-  const fxLength = fedexDims[0];
-  const fxGirth = 2 * (fedexDims[1] + fedexDims[2]);
-  const fxLpG = fxLength + fxGirth; // 長さ+周囲
-  const billableStandard = Math.max(weightKg, volWeight);
-  const billableStandardG = billableStandard * 1000;
-  const billableEcoKg = Math.max(weightKg, volWeightEco);
-  const billableEcoG = billableEcoKg * 1000;
-
-  // Current country config
-  const cc = COUNTRIES.find(c => c.id === currentCountry) || COUNTRIES[0];
-  const ficpTable = getFicpTable(cc.fedexZone);
-  const ipPkgTable = getIpPackageTable(cc.fedexZone);
-  const dhlTable = getDhlTable(cc.dhlZone);
-  const dhlEnvRate = getDhlEnvelopeRate(cc.dhlZone);
-  const isUS = currentCountry === 'us';
-
-  const groups = [
-    { id: 'fedex',    label: 'FedEx FICP（CPaSS）', tag: '推奨', primary: true,  methods: [], note: '基本的にはこの配送方法でOK' },
-    { id: 'fedex-ip', label: 'FedEx IP（CPaSS）',   tag: '速達', primary: false, methods: [], collapsed: true, note: '早い配送方法、少し高い' },
-    { id: 'dhl',      label: 'DHL（CPaSS）',         tag: '推奨', primary: true,  methods: [], note: '安ければ使用OK、基本的にはFedExが安い' },
-    { id: 'speedpak', label: 'Economy（CPaSS）',     tag: cc.economy?'4ヶ国限定':'非対応', primary: false, methods: [], note: cc.economy?'配送が遅いので使用する場合はEconomy用のShipping Policyを作成してください':'この国はEconomy非対応です' },
-    { id: 'elogi-ficp', label: 'eLogi FedEx FICP', tag: '比較用', primary: false, methods: [], collapsed: true, note: 'CPaSSと比較用 ※関税は後日請求のため含まれていません' },
-    { id: 'elogi-ip',   label: 'eLogi FedEx IP',   tag: '比較用', primary: false, methods: [], collapsed: true, note: 'CPaSSと比較用 ※関税は後日請求のため含まれていません' },
-    ...(getElogiUpsData(cc.upsZone) ? [
-      { id: 'elogi-ups', label: 'eLogi UPS Express Saver', tag: '比較用', primary: false, methods: [], collapsed: true, note: 'アジア・オーストラリア向けが安い' },
-    ] : []),
-    { id: 'jppost',   label: '日本郵便', tag: cc.jpOk!==false?'補助':'非対応', primary: false, methods: [], note: cc.jpOk!==false?'CPaSS非対応・自分で発送手続きが必要':(cc.jpZone?'この国は日本郵便の差出が制限されています（△）':'料金テーブル未設定') },
-  ];
-
-  function addMethod(groupId, m) {
-    m._groupId = groupId;
-    const g = groups.find(g => g.id === groupId);
-    if (g) g.methods.push(m);
-  }
-
-  // ===== SpeedPAK送料（API取得） =====
-  const _loading = _speedpakLoading;
-  const _apiSrc = _speedpakRates ? 'API' : '';
-  const _subSuffix = _apiSrc ? '' : (_loading ? '（取得中...）' : '（API未接続）');
-  const _dutyType = cc.code === 'US' ? 'DDP' : 'DDU';
-
-  // --- SpeedPAK FedEx FICP ---
-  {
-    const cs = billableStandardG <= 68000;
-    let c = cs ? spCost('ficp') : null;
-    let details = c && c > 0 ? spFeeDetails('ficp') : null;
-    let subNote = _subSuffix;
-    // APIが0を返した場合、ローカルレートテーブル＋燃油サーチャージ＋関税でフォールバック
-    if (cs && (c === null || c === 0)) {
-      const baseRate = lookupRate(ficpTable, billableStandardG);
-      if (baseRate > 0) {
-        const fuel = Math.round(baseRate * fuelSurchargeRate);
-        const duty = spDuty(); // 他の配送方法から関税額を取得
-        c = baseRate + fuel + duty;
-        details = [
-          {charges:'運送料金', chargesEn:'Shipping Rate', freight:baseRate},
-          {charges:'燃料割増金', chargesEn:'Fuel Surcharge', freight:fuel},
-        ];
-        // 関税系の内訳を他の配送方法から取得（関税+処理手数料）
-        const dutyItems = spDutyDetails();
-        if (dutyItems.length > 0) {
-          dutyItems.forEach(d => details.push(d));
-        } else if (duty > 0) {
-          details.push({charges:'推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
-        }
-        subNote = '（概算）';
-      }
-    }
-    const canSend = cs && c !== null && c > 0;
-    addMethod('fedex',{name:'International Connect Plus',sub:'2-5日/'+_dutyType+'/最大68kg/体積÷5,000/燃油込' + subNote,cost:canSend?c:-1,canSend:canSend,feeDetails:details,reason:!cs?'68kg超過':(c===null?'送料取得中':''),loading:_loading});
-  }
-
-  // --- SpeedPAK FedEx IP Envelope ---
-  {
-    const sorted = [L, W, H].sort((a,b) => b-a);
-    const csW = weightG <= 500;
-    const csS = sorted[0] <= 33.5 && sorted[1] <= 23.5 && sorted[2] <= 3;
-    const csVal = selling <= 0 || selling <= 500;
-    const cs = csW && csS && csVal;
-    const c = cs ? spCost('ip_envelope') : null;
-    const canSend = cs && c !== null && c > 0;
-    const r2 = [];
-    if (!csW) r2.push('500g超過');
-    if (!csS) r2.push('サイズ超過(23.5x33.5x3cm)');
-    if (!csVal) r2.push('申告価額$500超過');
-    addMethod('fedex-ip',{name:'FedEx IP Envelope',sub:'1-3日/'+_dutyType+'/最大500g/内寸23.5×33.5×3cm/$500以下/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('ip_envelope'):null,reason:r2.length?r2.join(', '):(c===null?'送料取得中':''),loading:_loading});
-  }
-
-  // --- SpeedPAK FedEx IP Pak ---
-  {
-    const cs = weightG <= 2500;
-    const c = cs ? spCost('ip_pak') : null;
-    const canSend = cs && c !== null && c > 0;
-    addMethod('fedex-ip',{name:'FedEx IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/実重量/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('ip_pak'):null,reason:!cs?'2.5kg超過':(c===null?'送料取得中':''),loading:_loading});
-  }
-
-  // --- SpeedPAK FedEx IP Package ---
-  {
-    const csW = billableStandardG <= 68000;
-    const csL = fxLength <= 274;
-    const csG = fxLpG <= 330;
-    const cs = csW && csL && csG;
-    const c = cs ? spCost('ip') : null;
-    const canSend = cs && c !== null && c > 0;
-    const r2 = [];
-    if (!csW) r2.push('68kg超過');
-    if (!csL) r2.push('最長辺274cm超過');
-    if (!csG) r2.push('長さ+周囲330cm超過');
-    addMethod('fedex-ip',{name:'FedEx IP Package',sub:'1-3日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('ip'):null,reason:r2.length?r2.join(', '):(c===null?'送料取得中':''),loading:_loading});
-  }
-
-  // --- SpeedPAK DHL Express Envelope ---
-  {
-    const cs = weightG <= 300;
-    const c = cs ? spCost('dhl_envelope') : null;
-    const canSend = cs && c !== null && c > 0;
-    addMethod('dhl',{name:'DHL Express Envelope',sub:'2-4日/'+_dutyType+'/最大300g/実重量/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('dhl_envelope'):null,reason:!cs?'300g超過':(c===null?'送料取得中':''),loading:_loading});
-  }
-
-  // --- SpeedPAK DHL Express Worldwide ---
-  {
-    const maxW = cc.dhlZone === 10 ? 70000 : 30000;
-    const cs = billableStandardG <= maxW;
-    const c = cs ? spCost('dhl') : null;
-    const canSend = cs && c !== null && c > 0;
-    addMethod('dhl',{name:'DHL Express',sub:'2-4日/'+_dutyType+'/最大'+(maxW/1000)+'kg/体積÷5,000/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('dhl'):null,reason:!cs?(maxW/1000)+'kg超過':(c===null?'送料取得中':''),loading:_loading});
-  }
-
-  // --- SpeedPAK Economy ---
-  if (cc.economy) {
-    const maxKg = cc.ecoMaxKg || 25;
-    const realMaxKg = cc.ecoRealMaxKg || Infinity;
-    const csW = billableEcoKg <= maxKg && weightKg <= realMaxKg;
-    const csD = cc.ecoSizeCheck ? cc.ecoSizeCheck(L, W, H, billableEcoG) : true;
-    const cs = csW && csD;
-    const c = cs ? spCost('economy') : null;
-    const canSend = cs && c !== null && c > 0;
-    const r2 = [];
-    if (!csW) r2.push(maxKg + 'kg超過');
-    if (!csD) r2.push('サイズ超過');
-    let ecoReason;
-    if (r2.length) {
-      ecoReason = r2.join(', ');
-    } else if (c === null) {
-      if (_loading) {
-        ecoReason = '送料取得中';
-      } else if (!_speedpakRates) {
-        ecoReason = '料金取得失敗';
-        console.error('[Economy] SpeedPAK API未接続のためEconomy料金を取得できません');
-      } else {
-        ecoReason = 'Economy対象外';
-        console.error('[Economy] APIレスポンスにEconomy料金が含まれていません（' + cc.code + '宛）');
-      }
-    } else {
-      ecoReason = '';
-    }
-    addMethod('speedpak',{name:'Economy',sub:cc.ecoDays+'/'+cc.ecoMaxVal+'以下/体積÷8,000/'+_dutyType + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('economy'):null,reason:ecoReason,loading:_loading});
-  } else {
-    addMethod('speedpak',{name:'Economy',sub:'この国はEconomy非対応',cost:-1,canSend:false,reason:cc.name+' 非対応'});
-  }
-
-  // ===== 日本郵便（国別料金） =====
-  {
-    const jpZone = cc.jpZone || 4;
-    const jpOk = cc.jpOk !== false;
-    const zoneName = jpZone === 1 ? '第1地帯' : jpZone === 2 ? '第2地帯' : jpZone === 3 ? '第3地帯' : '第4地帯';
-    const eplTable = getEpacketLightTable(jpZone);
-    const emsTable = getEmsTable(jpZone);
-    if (eplTable) {
-      const dims = [L, W, H].sort((a,b) => b-a);
-      const eplTooSmall = dims[0] < 14.8 || dims[1] < 10.5;
-      const eplTooLarge = dims[0] > 60 || (dims[0] + dims[1] + dims[2]) > 90;
-      const eplWeightOk = weightG <= 2000;
-      const eplSizeOk = !eplTooSmall && !eplTooLarge;
-      const cs = jpOk && eplWeightOk && eplSizeOk;
-      const c = cs ? lookupRate(eplTable, weightG) : (jpOk && eplSizeOk ? -1 : lookupRate(eplTable, Math.min(weightG,2000)));
-      const r2 = [];
-      if (!jpOk) r2.push('差出不可（△）');
-      if (eplTooSmall) r2.push('サイズ小さい（最小14.8×10.5cm）');
-      if (eplTooLarge) r2.push('サイズ超過（最大60cm/3辺合計90cm）');
-      if (!eplWeightOk) r2.push('2kg超過');
-      addMethod('jppost',{name:'eパケットライト',sub:zoneName+'/追跡あり/最大2kg/実重量/⚠️ Economy用Shipping Policy要作成',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:r2.join(', ')});
-    }
-    {
-      const emsDims = [L, W, H].sort((a,b) => b-a);
-      const emsTooLarge = emsDims[0] > 150 || (emsDims[0] + emsDims[1] + emsDims[2]) > 300;
-      const emsWeightOk = weightG <= 30000;
-      const emsSizeOk = !emsTooLarge;
-      const cs = jpOk && emsWeightOk && emsSizeOk;
-      const c = cs ? lookupRate(emsTable, weightG) : (jpOk && emsSizeOk ? -1 : lookupRate(emsTable, Math.min(weightG,30000)));
-      const r2 = [];
-      if (!jpOk) r2.push('差出不可（△）');
-      if (emsTooLarge) r2.push('サイズ超過（最大150cm/3辺合計300cm）');
-      if (!emsWeightOk) r2.push('30kg超過');
-      addMethod('jppost',{name:'EMS',sub:zoneName+'/最速/最大30kg/実重量',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:r2.join(', ')});
-    }
-  }
-
-  // ===== eLogi FedEx (全国, サーチャージ込み) =====
-  {
-    const eZ = cc.elogiZone;
-    if (eZ) {
-      const ficpD = getElogiFicpData(eZ);
-      if (ficpD) {
-        const csW = billableStandardG <= 68000;
-        const csL = fxLength <= 274;
-        const csG = fxLpG <= 330;
-        const cs = csW && csL && csG;
-        let c = cs ? elogiLookup(ficpD[0], ficpD[1], billableStandardG) : -1;
-        const canSend = cs && c > 0;
-        const r2 = [];
-        if (!csW) r2.push('68kg超過');
-        if (!csL) r2.push('最長辺274cm超過');
-        if (!csG) r2.push('長さ+周囲330cm超過');
-        if (cs && c <= 0) r2.push('重量超過');
-        addMethod('elogi-ficp',{name:'eLogi FICP',sub:'2-5日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/サーチャージ込',cost:canSend?c:-1,canSend:canSend,reason:r2.join(', ')});
-      }
-      {
-        const sorted = [L, W, H].sort((a,b) => b-a);
-        const csW = weightG <= 500;
-        const csS = sorted[0] <= 33.5 && sorted[1] <= 23.5 && sorted[2] <= 3;
-        const csVal = selling <= 0 || selling <= 500;
-        const cs = csW && csS && csVal;
-        const envRate = getElogiIpEnvRate(eZ);
-        const c = cs && envRate > 0 ? envRate : -1;
-        const r2 = [];
-        if (!csW) r2.push('500g超過');
-        if (!csS) r2.push('サイズ超過');
-        if (!csVal) r2.push('申告価額$500超過');
-        addMethod('elogi-ip',{name:'eLogi IP Envelope',sub:'1-3日/'+_dutyType+'/最大500g/$500以下/サーチャージ込',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:r2.join(', ')});
-      }
-      {
-        const pakTable = getElogiIpPakTable(eZ);
-        const csW = weightG <= 2500;
-        const csS = fedexDims[0] <= 52.71 && fedexDims[1] <= 44.45;
-        let csV = true;
-        let pakBillableG = weightG;
-        if (vol > 15400) {
-          pakBillableG = Math.max(weightG, vol / 5000 * 1000);
-          csV = pakBillableG <= 2500;
-        }
-        const csVal = selling <= 0 || selling <= 500;
-        const cs = csW && csS && csV && csVal && !!pakTable;
-        let c = cs ? lookupRate(pakTable, pakBillableG) : -1;
-        const pakR = [];
-        if (!csW) pakR.push('2.5kg超過');
-        if (!csS) pakR.push('サイズ超過（44.45×52.71cm超）');
-        if (csW && !csV) pakR.push('寸法重量2.5kg超過');
-        if (!csVal) pakR.push('申告価額$500超過');
-        const pakSub = vol > 15400 ? '体積÷5,000' : '実重量';
-        addMethod('elogi-ip',{name:'eLogi IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/'+pakSub+'/44.45×52.71cm/サーチャージ込',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:pakR.join(', ')});
-      }
-      {
-        const pkgD = getElogiIpPkgData(eZ);
-        if (pkgD) {
-          const csW = billableStandardG <= 68000;
-          const csL = fxLength <= 274;
-          const csG = fxLpG <= 330;
-          const cs = csW && csL && csG;
-          let c = cs ? elogiLookup(pkgD[0], pkgD[1], billableStandardG) : -1;
-          const canSend = cs && c > 0;
-          const r2 = [];
-          if (!csW) r2.push('68kg超過');
-          if (!csL) r2.push('最長辺274cm超過');
-          if (!csG) r2.push('長さ+周囲330cm超過');
-          if (cs && c <= 0) r2.push('重量超過');
-          addMethod('elogi-ip',{name:'eLogi IP Package',sub:'1-3日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/サーチャージ込',cost:canSend?c:-1,canSend:canSend,reason:r2.join(', ')});
-        }
-      }
-    }
-  }
-
-  // ===== eLogi UPS Express Saver (US/AU, サーチャージ込み) =====
-  {
-    const upsD = getElogiUpsData(cc.upsZone);
-    if (upsD) {
-      let c = elogiLookup(upsD[0], upsD[1], billableStandardG);
-      const cs = c > 0;
-      addMethod('elogi-ups',{name:'UPS Express Saver',sub:'2-5日/'+_dutyType+'/体積÷5,000/サーチャージ込',cost:cs?c:-1,canSend:cs,reason:!cs?'重量超過':''});
-    }
-  }
-
-  // Profit calculation
-  let allMethods = [];
-  groups.forEach(g => {
-    g.methods.forEach(m => {
-      if (m.cost > 0) {
-        m.profit = Math.round(netReceived - purchase - m.cost);
-        m.profitWithRefund = Math.round(m.profit + totalRefund);
-        m.profitRate = purchase > 0 ? (m.profit / purchase * 100) : 0;
-        m.isOk = m.canSend && m.profit >= 500 && m.profitRate >= 5;
-      } else {
-        m.profit = null; m.profitWithRefund = null; m.profitRate = 0; m.isOk = false;
-      }
-      allMethods.push(m);
-    });
-  });
-
-  // Best判定: CPaSS FedEx/DHLから最高利益メソッドを選定（eLogi比較用は除外）
-  const fedexDhlMethods = allMethods.filter(m => m._groupId === 'fedex' || m._groupId === 'fedex-ip' || m._groupId === 'dhl');
-  let bestFD = null, bestFDProfit = -Infinity;
-  fedexDhlMethods.forEach(m => {
-    if (m.canSend && m.profit !== null && m.profit > bestFDProfit) { bestFDProfit = m.profit; bestFD = m; }
-  });
-
-  // フォールバック: CPaSSにcanSendがなければ、eLogi/日本郵便除外で全体から探す
-  let bestProfit = -Infinity, bestRefund = -Infinity;
-  allMethods.forEach(m => {
-    if (!m.canSend) return;
-    if (m._groupId.startsWith('elogi')) return; // eLogi比較用は除外
-    if (m.profit !== null && m.profit > bestProfit) bestProfit = m.profit;
-    if (m.profitWithRefund !== null && m.profitWithRefund > bestRefund) bestRefund = m.profitWithRefund;
-  });
-
-  function setProfitCard(cellId, value, elId) {
-    const el = document.getElementById(elId);
-    if (value === null || value === undefined) {
-      el.textContent = '-';
-      el.className = 'p-val';
-      return;
-    }
-    if (value < 0) {
-      el.textContent = '⚠ ¥' + fmt(value);
-      el.className = 'p-val val-negative';
-    } else {
-      el.textContent = '¥' + fmt(value);
-      el.className = 'p-val';
-    }
-  }
-
-  const bestNameEl = document.getElementById('bestMethodName');
-  const bestRateSubEl = document.getElementById('bestRateSub');
-
-  const summaryBar = document.querySelector('.profit-summary');
-
-  if (bestFD) {
-    allMethods.forEach(m => { m.isBest = (m === bestFD); });
-    setProfitCard('summaryProfit', bestFD.profit, 'bestProfitYen');
-    setProfitCard('summaryRefund', bestFD.profitWithRefund, 'bestProfitRefundYen');
-    // 利益NG → バー全体を赤背景に
-    summaryBar.classList.toggle('negative', !bestFD.isOk);
-    const rateEl = document.getElementById('bestProfitRate');
-    rateEl.textContent = bestFD.profitRate.toFixed(1) + '%';
-    bestNameEl.textContent = bestFD.name;
-    bestRateSubEl.textContent = '仕入額 ¥' + fmt(purchase) + ' に対して';
-  } else {
-    let bestMethod = null;
-    allMethods.forEach(m => { m.isBest = m.profit !== null && m.profit === bestProfit && m.isOk; if (m.isBest && !bestMethod) bestMethod = m; });
-    setProfitCard('summaryProfit', bestProfit > -Infinity ? bestProfit : null, 'bestProfitYen');
-    setProfitCard('summaryRefund', bestRefund > -Infinity ? bestRefund : null, 'bestProfitRefundYen');
-    // 利益NG → バー全体を赤背景に
-    summaryBar.classList.toggle('negative', !bestMethod || !bestMethod.isOk);
-    const rateEl = document.getElementById('bestProfitRate');
-    rateEl.textContent = bestMethod ? bestMethod.profitRate.toFixed(1) + '%' : '-';
-    bestNameEl.textContent = bestMethod ? bestMethod.name : '';
-    bestRateSubEl.textContent = purchase > 0 ? '仕入額 ¥' + fmt(purchase) + ' に対して' : '';
-  }
-
-  // Sort by profit (descending)
-  groups.forEach(g => {
-    g.methods.sort((a,b) => {
-      const av = a.profit, bv = b.profit;
-      if (av === null && bv === null) return 0;
-      if (av === null) return 1;
-      if (bv === null) return -1;
-      return bv - av;
-    });
-  });
-
-  // Render
-  const container = document.getElementById('resultsContainer');
-  container.innerHTML = '';
-
-  groups.forEach(g => {
-    const section = document.createElement('div');
-    let sectionCls = 'group-section';
-    if (g.id === 'speedpak' && !cc.economy) sectionCls += ' collapsed';
-    if (g.collapsed) sectionCls += ' collapsed';
-    section.className = sectionCls;
-
-    let headerExtra = '';
-    const isCollapsed = g.collapsed || (g.id === 'speedpak' && !cc.economy);
-    if (isCollapsed) {
-      headerExtra = `<button class="group-toggle" onclick="this.closest('.group-section').classList.toggle('collapsed');this.textContent=this.closest('.group-section').classList.contains('collapsed')?'詳細 ▼':'閉じる ▲'">詳細 ▼</button>`;
-    }
-    // eLogi メリットリンク（比較用タグの横）
-    let meritLink = '';
-    if (g.id === 'elogi-ficp') {
-      meritLink = `<span style="font-size:.62rem;color:var(--text3);cursor:pointer;margin-left:4px;text-decoration:underline" onclick="event.stopPropagation();const d=document.getElementById('elogiMeritPopup');d.style.display=d.style.display==='none'?'block':'none'">メリット</span>`;
-    }
-    const noteHtml = g.note ? `<span class="g-note">— ${g.note}</span>` : '';
-    section.innerHTML = `<div class="group-header"><span class="g-label">${g.label}</span>${noteHtml}${meritLink}${headerExtra}</div>`;
-    // eLogi メリット吹き出し
-    if (g.id === 'elogi-ficp') {
-      const popup = document.createElement('div');
-      popup.id = 'elogiMeritPopup';
-      popup.style.cssText = 'display:none;font-size:.68rem;color:var(--text2);background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin:-4px 12px 6px;line-height:1.4';
-      popup.innerHTML = `<b>手数料の免除</b><br><b>【地域外配達料が発生しない国】</b><br>米国、ヨーロッパ、アジア主要国等は、FICPを利用の場合は「地域外配達料」は発生しない。`;
-      section.appendChild(popup);
-    }
-
-    // 日本郵便の注記
-    if (g.id === 'jppost') {
-      const jpZone = cc.jpZone || 4;
-      const note = document.createElement('div');
-      note.className = 'group-note';
-      note.style.cssText = 'font-size:.78rem;color:var(--text2);padding:4px 12px;margin-bottom:6px';
-      note.textContent = '📮 ' + (jpZone===3?'第3地帯':'第4地帯') + '（' + cc.name + '）';
-      section.appendChild(note);
-    }
-
-    const grid = document.createElement('div');
-    grid.className = 'group-grid';
-
-    g.methods.forEach(m => {
-      const row = document.createElement('div');
-      let cls = 'method-row';
-      // 利益OKかつ送料取得済みで発送可能 → usable、それ以外 → dimmed
-      if (m.isOk && m.canSend && m.cost > 0) cls += ' usable';
-      else cls += ' dimmed';
-      row.className = cls;
-
-      // Tags
-      const tagItems = [];
-      if (m.isBest) tagItems.push('<span class="method-tag tag-recommend">推奨</span>');
-      if (m.isOk) tagItems.push('<span class="method-tag tag-ok">利益OK</span>');
-      if (m.sub && m.sub.includes('DDP')) tagItems.push('<span class="method-tag tag-ddp">DDP</span>');
-      if (g.tag === '速達') tagItems.push('<span class="method-tag tag-fast">速達</span>');
-      if (g.tag === '比較用') tagItems.push('<span class="method-tag tag-compare">比較用</span>');
-      if (g.tag === '4ヶ国限定') tagItems.push('<span class="method-tag tag-limit">4ヶ国限定</span>');
-      if (g.tag === '非対応') tagItems.push('<span class="method-tag tag-ng">非対応</span>');
-      if (m.reason) tagItems.push(`<span class="method-tag tag-limit">${m.reason}</span>`);
-      const tags = tagItems.length ? `<div class="mr-tags">${tagItems.join('')}</div>` : '';
-
-      let right;
-      if (m.cost > 0 && m.profit !== null) {
-        const profitCls = m.profit < 0 ? 'val val-neg' : 'val val-profit';
-        const refundCls = m.profitWithRefund < 0 ? 'val val-neg' : 'val val-refund';
-        const profitTxt = m.profit < 0 ? '⚠ ¥' + fmt(m.profit) : '¥' + fmt(m.profit);
-        const refundTxt = m.profitWithRefund < 0 ? '⚠ ¥' + fmt(m.profitWithRefund) : '¥' + fmt(m.profitWithRefund);
-        const detailBtn = m.feeDetails ? `<button class="fee-detail-btn" onclick="event.stopPropagation();toggleFeePopup(this)" title="送料内訳">明細</button>` : '';
-        let popupHtml = '';
-        if (m.feeDetails) {
-          const rows = m.feeDetails.filter(d => d.freight > 0).map(d => `<div class="fp-row"><span class="fp-name">${d.charges}</span><span class="fp-val">¥${fmt(d.freight)}</span></div>`).join('');
-          popupHtml = `<div class="fee-popup" style="display:none"><div class="fp-header">送料内訳</div>${rows}<div class="fp-row fp-total"><span class="fp-name">合計</span><span class="fp-val">¥${fmt(m.cost)}</span></div></div>`;
-        }
-        right = `<div class="mr-right">
-          <span class="lbl">送料 ${detailBtn}</span><span class="val val-cost">¥${fmt(m.cost)}</span>
-          <span class="lbl">利益</span><span class="${profitCls}">${profitTxt}</span>
-          <span class="lbl">還付込</span><span class="${refundCls}">${refundTxt}</span>
-        </div>${popupHtml}`;
-      } else {
-        right = `<div class="mr-na">${m.reason || '発送不可'}</div>`;
-      }
-
-      row.innerHTML = `<div class="mr-left"><div class="mr-name">${m.name}</div><div class="mr-sub">${m.sub}</div>${tags}</div>${right}`;
-      grid.appendChild(row);
-    });
-
-    section.appendChild(grid);
-    container.appendChild(section);
-  });
-}
-
-// ========== LocalStorage Persistence ==========
-const SAVE_KEY = 'ebayCalcState';
-const SAVE_FIELDS = ['purchasePrice','sellingPrice','compShipping','weight','length','width','height',
-  'categoryNo','exchangeRate','fuelSurcharge','usShippingPct',
-  'ebayFeeRate','feeThreshold','ebayFeeRate2','perOrderFee',
-  'promotedRate','intlFeeRate','payoneerRate','taxRate'];
-
-function saveState() {
-  const s = {};
-  SAVE_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) s[id] = el.value; });
-  s._country = document.getElementById('destCountry').value;
-  s._pricingMode = currentPricingMode;
-  s._storePlan = currentStorePlan;
-  s._compCurrency = compShippingCurrency;
-  localStorage.setItem(SAVE_KEY, JSON.stringify(s));
-}
-
-function restoreState() {
-  try {
-    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (!s) return false;
-    SAVE_FIELDS.forEach(id => { const el = document.getElementById(id); if (el && s[id] !== undefined) el.value = s[id]; });
-    if (s._country) document.getElementById('destCountry').value = s._country;
-    if (s._pricingMode) setPricingMode(s._pricingMode);
-    if (s._storePlan) setStorePlan(s._storePlan);
-    if (s._compCurrency) setCompShippingCurrency(s._compCurrency);
-    return true;
-  } catch(e) { return false; }
-}
-
-// ========== Event Listeners ==========
-document.querySelectorAll('input').forEach(el => {
-  el.addEventListener('input', () => { calculate(); saveState(); debouncedFetchSpeedpak(); });
-});
-document.getElementById('categoryNo').addEventListener('input', onCategoryNoInput);
-document.getElementById('destCountry').addEventListener('change', onCountryChange);
-
-// Initial setup
-initCountrySelector();
-const restored = restoreState();
-{
-  // 復元された国IDが現在のリストに存在するか確認（旧ID 'uk','de'等→フォールバック）
-  const sel = document.getElementById('destCountry');
-  const validIds = COUNTRIES.map(c => c.id);
-  if (!validIds.includes(sel.value)) sel.value = 'us';
-  currentCountry = sel.value;
-}
-onCategoryNoInput(); // 常にカテゴリNo.から手数料を自動判定
-updateFeeDescription();
-initExchangeRate();
-initFuelSurcharge();
-calculate();
-fetchSpeedpakRates(); // 初回のSpeedPAK API呼び出し
 </script>
 
-
-</body></html>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
