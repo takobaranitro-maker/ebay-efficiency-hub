@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { saveState, restoreState } from './utils.js';
+import { saveState, restoreState, getVal } from './utils.js';
 import { SHOP_SITES, KW_LIST, COUNTRIES } from './config.js';
 import { initExchangeRate, initFuelSurcharge, fetchRate, fetchFuelSurcharge, fetchSpeedpakRates } from './api.js';
 import { calculate } from './calculator.js';
@@ -30,9 +30,70 @@ function init() {
 }
 
 // 状態保存＆計算ラッパー
+// 状態保存＆計算ラッパー
 function calculateWrapper() {
+  evaluateBenchmark(); // 利益計算の前に自動判定を走らせる
   calculate();
   saveState(state);
+}
+
+// ===== 最安値自動判定ロジック =====
+function evaluateBenchmark() {
+  const candidates = [];
+  
+  // 入力された3つの候補を取得
+  for (let i = 1; i <= 3; i++) {
+    const p = getVal('comp' + i + 'Price');
+    const s = getVal('comp' + i + 'Ship');
+    if (p > 0) {
+      candidates.push({ 
+        id: i, 
+        price: p, 
+        ship: s, 
+        total: p + s, 
+        ratio: s / p // 本体価格に対する送料の割合
+      });
+    }
+  }
+
+  const reasonEl = document.getElementById('adoptedReason');
+  const benchEl = document.getElementById('adoptedBenchmark');
+  const sellEl = document.getElementById('sellingPrice');
+  const compShipEl = document.getElementById('compShipping');
+
+  if (candidates.length === 0) {
+    if (benchEl) benchEl.textContent = 'データ未入力';
+    if (reasonEl) reasonEl.textContent = '-';
+    return;
+  }
+
+  // Total Price（本体＋送料）が安い順に並び替え
+  candidates.sort((a, b) => a.total - b.total);
+
+  let adopted = candidates[0]; 
+  let reason = '最安値（Total Price）をそのまま採用';
+
+  // 送料が本体の20%以下（0.20）の適正なセラーを探す
+  const reasonable = candidates.find(c => c.ratio <= 0.20);
+
+  if (reasonable) {
+    if (reasonable.id !== candidates[0].id) {
+      adopted = reasonable;
+      reason = `上位候補が送料過多（20%超）のため、適正比率の候補${reasonable.id}を採用`;
+    }
+  } else {
+    reason = '全候補が送料20%超のため、最安Total Priceを採用';
+  }
+
+  // 判定結果のUI表示
+  if (benchEl) benchEl.textContent = `本体 $${adopted.price.toFixed(2)} + 送料 $${adopted.ship.toFixed(2)}`;
+  if (reasonEl) reasonEl.textContent = reason;
+
+  // 既存の入力欄（sellingPrice, compShipping）へ値を自動流し込み
+  if (sellEl && compShipEl) {
+    if (parseFloat(sellEl.value) !== adopted.price) sellEl.value = adopted.price;
+    if (parseFloat(compShipEl.value) !== adopted.ship) compShipEl.value = adopted.ship;
+  }
 }
 
 // ===== イベントリスナーの登録 =====
@@ -101,6 +162,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (shopQuery) shopQuery.addEventListener('keydown', (e) => { if (e.key === 'Enter') shopSearch(); });
   if (btnShopAll) btnShopAll.addEventListener('click', () => toggleShopAll(true));
   if (btnShopClear) btnShopClear.addEventListener('click', () => toggleShopAll(false));
+
+  // 最安値・市場の自動判定ボタン
+  const btnAutoDetermine = document.getElementById('btnAutoDetermine');
+  if (btnAutoDetermine) {
+    btnAutoDetermine.addEventListener('click', () => {
+      autoDeterminePricing();
+    });
+  }
 
   // 動的生成要素へのイベント委譲（ガチャ単語のコピー）
   const kwResult = document.getElementById('kwResult');
@@ -325,4 +394,89 @@ function shopSearch() {
     }
   });
   if (opened === 0) alert('検索するサイトを選択してください');
+}
+
+// ===== 最安値・市場（US/Other）自動判定ロジック =====
+async function autoDeterminePricing() {
+  const candidates = [];
+  
+  // 1. 候補の取得
+  for (let i = 1; i <= 3; i++) {
+    const p = getVal('comp' + i + 'Price');
+    const s = getVal('comp' + i + 'Ship');
+    if (p > 0) {
+      candidates.push({ 
+        id: i, 
+        price: p, 
+        ship: s, 
+        total: p + s, 
+        ratio: s / p // 本体価格に対する送料の割合
+      });
+    }
+  }
+
+  const reasonEl = document.getElementById('adoptedReason');
+  const benchEl = document.getElementById('adoptedBenchmark');
+  const sellEl = document.getElementById('sellingPrice');
+  const compShipEl = document.getElementById('compShipping');
+
+  if (candidates.length === 0) {
+    if (benchEl) benchEl.textContent = 'データ未入力';
+    if (reasonEl) reasonEl.textContent = '-';
+    return;
+  }
+
+  // 2. 【ルール③】ボッタクリ送料の排除（20%以下を適正とする）
+  let validCandidates = candidates.filter(c => c.ratio <= 0.20);
+  if (validCandidates.length === 0) {
+    validCandidates = candidates; // 全て20%超の場合は、仕方なく全てを対象にする
+  }
+
+  // 3. 【ルール①】Total Price（本体＋送料）が安い順に並び替え
+  validCandidates.sort((a, b) => a.total - b.total);
+  const best = validCandidates[0]; // これがベンチマークの正解
+
+  if (benchEl) benchEl.textContent = `本体 $${best.price.toFixed(2)} + 送料 $${best.ship.toFixed(2)} (候補${best.id}を採用)`;
+  if (reasonEl) reasonEl.textContent = '第一優先（アメリカ向けDDP）の利益を計算中...';
+
+  // 4. 【第一優先：アメリカ向けDDP判定】
+  setPricingMode('us'); // UIと内部状態を強制的にアメリカモードへ
+  if (sellEl) sellEl.value = best.price;
+  if (compShipEl) compShipEl.value = best.ship;
+
+  // SpeedPAKのAPIを叩いて送料を算出し、既存の利益計算を走らせる
+  await fetchSpeedpakRates();
+  calculate();
+
+  // 既存のUIから利益が出ているか（赤字じゃないか）を判定
+  const summaryBar = document.querySelector('.profit-summary');
+  const isUsProfitable = summaryBar && !summaryBar.classList.contains('negative');
+
+  if (isUsProfitable) {
+    reasonEl.innerHTML = `<strong style="color:#16a34a;">【第一優先】アメリカ向け(DDP)で利益確保OK</strong>`;
+    saveState(state);
+    return; // ここで処理終了
+  }
+
+  // 5. 【第二優先：他国向けDDU判定】（ルール②）
+  reasonEl.textContent = 'アメリカ向け赤字のため、第二優先（他国向けDDU）の利益を計算中...';
+  
+  setPricingMode('other'); // UIと内部状態を強制的に他国モードへ
+  // 他国向けは送料を無視して、純粋な商品価格のみで勝負する
+  if (sellEl) sellEl.value = best.price;
+  // compShippingはモード切替で見えなくなるため、そのままでOK
+
+  // 再度APIを叩いて他国向け送料を算出し、利益計算を走らせる
+  await fetchSpeedpakRates();
+  calculate();
+
+  const isOtherProfitable = summaryBar && !summaryBar.classList.contains('negative');
+
+  if (isOtherProfitable) {
+    reasonEl.innerHTML = `<strong style="color:#16a34a;">【第二優先】他国向け(DDU)なら利益確保OK（送料無視の純粋価格）</strong>`;
+  } else {
+    reasonEl.innerHTML = `<strong style="color:#dc2626;">【警告】どの市場でも利益が出ません。仕入対象外の可能性があります。</strong>`;
+  }
+  
+  saveState(state);
 }

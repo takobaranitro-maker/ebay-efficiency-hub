@@ -500,7 +500,7 @@ export function calculate() {
         m.profit = Math.round(netReceived - purchase - m.cost);
         m.profitWithRefund = Math.round(m.profit + totalRefund);
         m.profitRate = purchase > 0 ? (m.profit / purchase * 100) : 0;
-        m.isOk = m.canSend && m.profit >= 500 && m.profitRate >= 5;
+        m.isOk = m.canSend && m.profit >= 1000 && m.profitRate >= 10;
       } else {
         m.profit = null; m.profitWithRefund = null; m.profitRate = 0; m.isOk = false;
       }
