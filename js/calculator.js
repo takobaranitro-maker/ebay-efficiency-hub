@@ -500,7 +500,9 @@ export function calculate() {
         m.profit = Math.round(netReceived - purchase - m.cost);
         m.profitWithRefund = Math.round(m.profit + totalRefund);
         m.profitRate = purchase > 0 ? (m.profit / purchase * 100) : 0;
-        m.isOk = m.canSend && m.profit >= 1000 && m.profitRate >= 10;
+        // 仕入れ価格を直接取得し、「仕入れ価格の10%」を計算して判定の基準にする
+        const purchasePrice = typeof getVal === 'function' ? getVal('purchasePrice') : 0;
+        m.isOk = m.canSend && m.profit >= 1000 && m.profit >= (purchasePrice * 0.1);
       } else {
         m.profit = null; m.profitWithRefund = null; m.profitRate = 0; m.isOk = false;
       }

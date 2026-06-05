@@ -297,6 +297,14 @@ h1 {
   white-space: nowrap;
 }
 
+/* 利益・最安値自動判定ボタンが disabled (無効化) の時のスタイル */
+#btnAutoDetermine:disabled {
+  background: #e0e0e0 !important;
+  border-color: #e0e0e0 !important;
+  color: #8a8a8a !important;
+  cursor: not-allowed !important;
+}
+
 /* ===== 2-Column Layout ===== */
 .main-layout {
   display: grid;

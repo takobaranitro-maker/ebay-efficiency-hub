@@ -12,7 +12,6 @@ function init() {
   
   restoreState(state);
   
-  // セレクトボックスの復元値チェック
   const sel = document.getElementById('destCountry');
   if (sel) {
     const validIds = COUNTRIES.map(c => c.id);
@@ -20,80 +19,17 @@ function init() {
     state.currentCountry = sel.value;
   }
 
-  // モードUI反映
   updateModeUI();
 
-  // APIデータ取得と計算の実行
   initExchangeRate(() => calculateWrapper());
   initFuelSurcharge(() => calculateWrapper());
   fetchSpeedpakRates(() => calculateWrapper());
 }
 
-// 状態保存＆計算ラッパー
-// 状態保存＆計算ラッパー
+// ===== 状態保存＆計算ラッパー =====
 function calculateWrapper() {
-  evaluateBenchmark(); // 利益計算の前に自動判定を走らせる
   calculate();
   saveState(state);
-}
-
-// ===== 最安値自動判定ロジック =====
-function evaluateBenchmark() {
-  const candidates = [];
-  
-  // 入力された3つの候補を取得
-  for (let i = 1; i <= 3; i++) {
-    const p = getVal('comp' + i + 'Price');
-    const s = getVal('comp' + i + 'Ship');
-    if (p > 0) {
-      candidates.push({ 
-        id: i, 
-        price: p, 
-        ship: s, 
-        total: p + s, 
-        ratio: s / p // 本体価格に対する送料の割合
-      });
-    }
-  }
-
-  const reasonEl = document.getElementById('adoptedReason');
-  const benchEl = document.getElementById('adoptedBenchmark');
-  const sellEl = document.getElementById('sellingPrice');
-  const compShipEl = document.getElementById('compShipping');
-
-  if (candidates.length === 0) {
-    if (benchEl) benchEl.textContent = 'データ未入力';
-    if (reasonEl) reasonEl.textContent = '-';
-    return;
-  }
-
-  // Total Price（本体＋送料）が安い順に並び替え
-  candidates.sort((a, b) => a.total - b.total);
-
-  let adopted = candidates[0]; 
-  let reason = '最安値（Total Price）をそのまま採用';
-
-  // 送料が本体の20%以下（0.20）の適正なセラーを探す
-  const reasonable = candidates.find(c => c.ratio <= 0.20);
-
-  if (reasonable) {
-    if (reasonable.id !== candidates[0].id) {
-      adopted = reasonable;
-      reason = `上位候補が送料過多（20%超）のため、適正比率の候補${reasonable.id}を採用`;
-    }
-  } else {
-    reason = '全候補が送料20%超のため、最安Total Priceを採用';
-  }
-
-  // 判定結果のUI表示
-  if (benchEl) benchEl.textContent = `本体 $${adopted.price.toFixed(2)} + 送料 $${adopted.ship.toFixed(2)}`;
-  if (reasonEl) reasonEl.textContent = reason;
-
-  // 既存の入力欄（sellingPrice, compShipping）へ値を自動流し込み
-  if (sellEl && compShipEl) {
-    if (parseFloat(sellEl.value) !== adopted.price) sellEl.value = adopted.price;
-    if (parseFloat(compShipEl.value) !== adopted.ship) compShipEl.value = adopted.ship;
-  }
 }
 
 // ===== イベントリスナーの登録 =====
@@ -108,18 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 国セレクト変更時
   const destCountryEl = document.getElementById('destCountry');
   if (destCountryEl) {
     destCountryEl.addEventListener('change', (e) => {
       state.currentCountry = e.target.value;
-      state.speedpakRates = null; // 国が変わったのでクリア
+      state.speedpakRates = null; 
       calculateWrapper();
       fetchSpeedpakRates(() => calculateWrapper());
     });
   }
 
-  // カテゴリNo変更時は calculator 内で config.js の getCategoryName 等を用いて自動反映されるため再計算のみ発火
   const categoryNoEl = document.getElementById('categoryNo');
   if (categoryNoEl) {
     categoryNoEl.addEventListener('input', () => {
@@ -127,31 +61,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // モード切替（US / Other）
   const modeUsBtn = document.getElementById('modeUs');
   const modeOtherBtn = document.getElementById('modeOther');
   if (modeUsBtn) modeUsBtn.addEventListener('click', () => setPricingMode('us'));
   if (modeOtherBtn) modeOtherBtn.addEventListener('click', () => setPricingMode('other'));
 
-  // プラン切替（ストアなし / ストアあり）
   const planNoStoreBtn = document.getElementById('planNoStore');
   const planStoreBtn = document.getElementById('planStore');
   if (planNoStoreBtn) planNoStoreBtn.addEventListener('click', () => setStorePlan('noStore'));
   if (planStoreBtn) planStoreBtn.addEventListener('click', () => setStorePlan('store'));
   
-  // 通貨切替（US競合送料用）
   const compCurrUsdBtn = document.getElementById('compCurrUsd');
   const compCurrJpyBtn = document.getElementById('compCurrJpy');
   if (compCurrUsdBtn) compCurrUsdBtn.addEventListener('click', () => setCompShippingCurrency('usd'));
   if (compCurrJpyBtn) compCurrJpyBtn.addEventListener('click', () => setCompShippingCurrency('jpy'));
 
-  // 手動取得ボタン
   const btnFetchRate = document.getElementById('btnFetchRate');
   const btnFetchFuel = document.getElementById('btnFetchFuel');
   if (btnFetchRate) btnFetchRate.addEventListener('click', () => fetchRate(false, calculateWrapper));
   if (btnFetchFuel) btnFetchFuel.addEventListener('click', () => fetchFuelSurcharge(false, calculateWrapper));
 
-  // ガチャ・検索
   const btnRollKw = document.getElementById('btnRollKw');
   const btnShopSearch = document.getElementById('btnShopSearch');
   const shopQuery = document.getElementById('shopQuery');
@@ -163,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnShopAll) btnShopAll.addEventListener('click', () => toggleShopAll(true));
   if (btnShopClear) btnShopClear.addEventListener('click', () => toggleShopAll(false));
 
-  // 最安値・市場の自動判定ボタン
   const btnAutoDetermine = document.getElementById('btnAutoDetermine');
   if (btnAutoDetermine) {
     btnAutoDetermine.addEventListener('click', () => {
@@ -171,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 動的生成要素へのイベント委譲（ガチャ単語のコピー）
   const kwResult = document.getElementById('kwResult');
   if (kwResult) {
     kwResult.addEventListener('click', (e) => {
@@ -179,7 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // 詳細設定 トグル
   const settingsToggle = document.getElementById('settingsToggle');
   if (settingsToggle) {
     settingsToggle.addEventListener('click', function() {
@@ -198,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 手数料内訳 トグル
   const feeToggle = document.getElementById('feeToggle');
   if (feeToggle) {
     feeToggle.addEventListener('click', function() {
@@ -217,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 海外手数料 詳細トグル
   const toggleIntlFee = document.getElementById('toggleIntlFee');
   if (toggleIntlFee) {
     toggleIntlFee.addEventListener('click', () => {
@@ -233,7 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ===== UI・状態変更機能群 =====
-
 function setPricingMode(mode) {
   state.currentPricingMode = mode;
   updateModeUI();
@@ -264,18 +187,12 @@ function updateModeUI() {
   const usSec = document.getElementById('usSection');
   const otherSec = document.getElementById('otherSection');
   if (usSec) {
-    if (state.currentPricingMode === 'us') {
-      usSec.classList.remove('u-hidden');
-    } else {
-      usSec.classList.add('u-hidden');
-    }
+    if (state.currentPricingMode === 'us') usSec.classList.remove('u-hidden');
+    else usSec.classList.add('u-hidden');
   }
   if (otherSec) {
-    if (state.currentPricingMode === 'other') {
-      otherSec.classList.remove('u-hidden');
-    } else {
-      otherSec.classList.add('u-hidden');
-    }
+    if (state.currentPricingMode === 'other') otherSec.classList.remove('u-hidden');
+    else otherSec.classList.add('u-hidden');
   }
   
   const planNoStoreBtn = document.getElementById('planNoStore');
@@ -284,7 +201,6 @@ function updateModeUI() {
   if (planStoreBtn) planStoreBtn.classList.toggle('active', state.currentStorePlan === 'store');
 }
 
-// デバウンス処理（短時間の連続入力を防ぎAPIを呼び出す）
 let _speedpakDebounceTimer = null;
 function debouncedFetchSpeedpak() {
   if (_speedpakDebounceTimer) clearTimeout(_speedpakDebounceTimer);
@@ -293,7 +209,6 @@ function debouncedFetchSpeedpak() {
   }, 500);
 }
 
-// ===== カントリーセレクタ =====
 function initCountrySelector() {
   const sel = document.getElementById('destCountry');
   if (!sel) return;
@@ -306,7 +221,6 @@ function initCountrySelector() {
   sel.value = 'us';
 }
 
-// ===== キーワードガチャ =====
 export function rollKw() {
   const countSelect = document.getElementById('kwCount');
   const resultDiv = document.getElementById('kwResult');
@@ -315,16 +229,13 @@ export function rollKw() {
   const count = parseInt(countSelect.value) || 2;
   const shuffled = [...KW_LIST].sort(() => Math.random() - 0.5);
   const picked = shuffled.slice(0, count);
-  resultDiv.innerHTML = picked.map(w => 
-    `<span class="kw-item" title="クリックでコピー">${w}</span>`
-  ).join('');
+  resultDiv.innerHTML = picked.map(w => `<span class="kw-item" title="クリックでコピー">${w}</span>`).join('');
 }
 
 export function copyOneKw(span) {
   const text = span.textContent.trim();
   if (!text) return;
   
-  // クリップボードへコピー
   const ta = document.createElement('textarea');
   ta.value = text;
   ta.style.position = 'fixed';
@@ -334,17 +245,15 @@ export function copyOneKw(span) {
   document.execCommand('copy');
   document.body.removeChild(ta);
   
-  // 一時的に表示とスタイルを変更
   const orig = span.textContent;
   span.textContent = '✓ copy';
   span.style.background = 'var(--green-bg)';
   setTimeout(() => { 
     span.textContent = orig; 
-    span.style.background = ''; // CSSで設定された元の背景色に戻す
+    span.style.background = ''; 
   }, 800);
 }
 
-// ===== ショッピングサイト一括検索 =====
 function initShopSites() {
   const container = document.getElementById('shopSites');
   if (!container) return;
@@ -357,7 +266,6 @@ function initShopSites() {
     container.appendChild(lbl);
   });
 
-  // チェックボックス変更時に保存
   container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', saveShopChecks);
   });
@@ -398,85 +306,116 @@ function shopSearch() {
 
 // ===== 最安値・市場（US/Other）自動判定ロジック =====
 async function autoDeterminePricing() {
-  const candidates = [];
-  
-  // 1. 候補の取得
-  for (let i = 1; i <= 3; i++) {
-    const p = getVal('comp' + i + 'Price');
-    const s = getVal('comp' + i + 'Ship');
-    if (p > 0) {
-      candidates.push({ 
-        id: i, 
-        price: p, 
-        ship: s, 
-        total: p + s, 
-        ratio: s / p // 本体価格に対する送料の割合
-      });
-    }
-  }
-
   const reasonEl = document.getElementById('adoptedReason');
   const benchEl = document.getElementById('adoptedBenchmark');
   const sellEl = document.getElementById('sellingPrice');
   const compShipEl = document.getElementById('compShipping');
+  const countryEl = document.getElementById('destCountry'); 
+  
+  // ★修正：HTMLの正しいID（btnAutoDetermine）に合わせました
+  const btn = document.getElementById('btnAutoDetermine'); 
+  
+  // 処理開始時にボタンを無効化（ここで先ほど追加したグレーのCSSが適用されます）
+  if (btn) btn.disabled = true; 
+
+  const updateMsg = async (text, color = '#4b5563') => {
+    if (reasonEl) reasonEl.innerHTML = `<span style="color:${color};">${text}</span>`;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  };
+
+  const updateInput = async (el, val) => {
+    if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true })); 
+    await new Promise(resolve => setTimeout(resolve, 50)); 
+  };
+
+  const candidates = [];
+  for (let i = 1; i <= 3; i++) {
+    const p = getVal('comp' + i + 'Price');
+    const s = getVal('comp' + i + 'Ship');
+    if (p > 0) {
+      candidates.push({ id: i, price: p, ship: s, total: p + s, ratio: s / p });
+    }
+  }
 
   if (candidates.length === 0) {
     if (benchEl) benchEl.textContent = 'データ未入力';
-    if (reasonEl) reasonEl.textContent = '-';
+    await updateMsg('候補データが入力されていません。', '#dc2626');
+    if (btn) btn.disabled = false; // エラー終了時もボタンを復活
     return;
   }
 
-  // 2. 【ルール③】ボッタクリ送料の排除（20%以下を適正とする）
-  let validCandidates = candidates.filter(c => c.ratio <= 0.20);
+  if (benchEl) benchEl.textContent = '最適な価格を計算中...';
+  await updateMsg('⏳ システムが利益と最安値を検証しています...', '#ea580c');
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  let validCandidates = candidates.filter(c => c.ratio <= 0.35);
   if (validCandidates.length === 0) {
-    validCandidates = candidates; // 全て20%超の場合は、仕方なく全てを対象にする
+    validCandidates = candidates;
   }
 
-  // 3. 【ルール①】Total Price（本体＋送料）が安い順に並び替え
-  validCandidates.sort((a, b) => a.total - b.total);
-  const best = validCandidates[0]; // これがベンチマークの正解
+  const bestUs = [...validCandidates].sort((a, b) => a.total - b.total)[0];
+  const bestOther = [...validCandidates].sort((a, b) => a.price - b.price)[0];
 
-  if (benchEl) benchEl.textContent = `本体 $${best.price.toFixed(2)} + 送料 $${best.ship.toFixed(2)} (候補${best.id}を採用)`;
-  if (reasonEl) reasonEl.textContent = '第一優先（アメリカ向けDDP）の利益を計算中...';
-
-  // 4. 【第一優先：アメリカ向けDDP判定】
-  setPricingMode('us'); // UIと内部状態を強制的にアメリカモードへ
-  if (sellEl) sellEl.value = best.price;
-  if (compShipEl) compShipEl.value = best.ship;
-
-  // SpeedPAKのAPIを叩いて送料を算出し、既存の利益計算を走らせる
-  await fetchSpeedpakRates();
-  calculate();
-
-  // 既存のUIから利益が出ているか（赤字じゃないか）を判定
-  const summaryBar = document.querySelector('.profit-summary');
-  const isUsProfitable = summaryBar && !summaryBar.classList.contains('negative');
-
-  if (isUsProfitable) {
-    reasonEl.innerHTML = `<strong style="color:#16a34a;">【第一優先】アメリカ向け(DDP)で利益確保OK</strong>`;
-    saveState(state);
-    return; // ここで処理終了
-  }
-
-  // 5. 【第二優先：他国向けDDU判定】（ルール②）
-  reasonEl.textContent = 'アメリカ向け赤字のため、第二優先（他国向けDDU）の利益を計算中...';
+  // STEP 1: 他国向け(DDU)の利益チェック【ヨーロッパ基準】
+  setPricingMode('other'); 
+  if (countryEl) await updateInput(countryEl, 'eu');
+  await updateInput(sellEl, bestOther.price);
   
-  setPricingMode('other'); // UIと内部状態を強制的に他国モードへ
-  // 他国向けは送料を無視して、純粋な商品価格のみで勝負する
-  if (sellEl) sellEl.value = best.price;
-  // compShippingはモード切替で見えなくなるため、そのままでOK
-
-  // 再度APIを叩いて他国向け送料を算出し、利益計算を走らせる
   await fetchSpeedpakRates();
   calculate();
 
+  const summaryBar = document.querySelector('.profit-summary');
   const isOtherProfitable = summaryBar && !summaryBar.classList.contains('negative');
 
-  if (isOtherProfitable) {
-    reasonEl.innerHTML = `<strong style="color:#16a34a;">【第二優先】他国向け(DDU)なら利益確保OK（送料無視の純粋価格）</strong>`;
+  if (!isOtherProfitable) {
+    if (benchEl) benchEl.textContent = `本体 $${bestOther.price.toFixed(2)} + 送料 $${bestOther.ship.toFixed(2)} (候補${bestOther.id})`;
+    await updateMsg('【出品NG】他国(ヨーロッパ基準)で売れた場合に利益基準を満たせません。', '#dc2626');
+    saveState(state);
+    if (btn) btn.disabled = false; // 処理終了でボタンを復活
+    return; 
+  }
+
+  // STEP 2: アメリカ向け(DDP)の利益チェック
+  setPricingMode('us'); 
+  if (countryEl) await updateInput(countryEl, 'us');
+  await updateInput(sellEl, bestUs.price);
+  await updateInput(compShipEl, bestUs.ship);
+
+  await fetchSpeedpakRates();
+  calculate();
+
+  const isUsProfitable = summaryBar && !summaryBar.classList.contains('negative');
+
+  // STEP 3: 最終判定の画面表示
+  if (isUsProfitable) {
+    if (benchEl) benchEl.textContent = `本体 $${bestUs.price.toFixed(2)} + 送料 $${bestUs.ship.toFixed(2)} (候補${bestUs.id}を採用)`;
+    await updateMsg('【採用】アメリカ向け(DDP)で設定（他国に売れても利益確保OK）', '#16a34a');
+    
+    // アメリカ向け判定になった場合も、最終的な配送先表示は「ヨーロッパ」にしておく
+    if (countryEl) {
+      await updateInput(countryEl, 'eu');
+      await fetchSpeedpakRates();
+      calculate();
+    }
   } else {
-    reasonEl.innerHTML = `<strong style="color:#dc2626;">【警告】どの市場でも利益が出ません。仕入対象外の可能性があります。</strong>`;
+    setPricingMode('other');
+    if (countryEl) await updateInput(countryEl, 'eu');
+    
+    await updateInput(compShipEl, bestOther.ship);
+    await updateInput(sellEl, bestOther.price); 
+
+    await fetchSpeedpakRates();
+    calculate();
+
+    if (benchEl) benchEl.textContent = `本体 $${bestOther.price.toFixed(2)} + 送料 $${bestOther.ship.toFixed(2)} (候補${bestOther.id}を採用)`;
+    await updateMsg('【採用】他国向け(DDU)で設定（アメリカ最安値は不可ですが、他国で利益OK）', '#2563eb');
   }
   
   saveState(state);
+  
+  // 処理終了でボタンを復活（色が元に戻る）
+  if (btn) btn.disabled = false;
 }
