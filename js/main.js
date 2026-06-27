@@ -1,6 +1,5 @@
 import { state } from './state.js';
 import { saveState, restoreState, getVal } from './utils.js';
-import { saveState, restoreState, getVal } from './utils.js';
 import { SHOP_SITES, KW_LIST, COUNTRIES } from './config.js';
 import { initExchangeRate, initFuelSurcharge, fetchRate, fetchFuelSurcharge, fetchSpeedpakRates } from './api.js';
 import { calculate } from './calculator.js';
@@ -28,7 +27,6 @@ function init() {
 }
 
 // ===== 状態保存＆計算ラッパー =====
-// ===== 状態保存＆計算ラッパー =====
 function calculateWrapper() {
   calculate();
   saveState(state);
@@ -50,7 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (destCountryEl) {
     destCountryEl.addEventListener('change', (e) => {
       state.currentCountry = e.target.value;
-      state.speedpakRates = null; 
       state.speedpakRates = null; 
       calculateWrapper();
       fetchSpeedpakRates(() => calculateWrapper());
@@ -94,13 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (shopQuery) shopQuery.addEventListener('keydown', (e) => { if (e.key === 'Enter') shopSearch(); });
   if (btnShopAll) btnShopAll.addEventListener('click', () => toggleShopAll(true));
   if (btnShopClear) btnShopClear.addEventListener('click', () => toggleShopAll(false));
-
-  const btnAutoDetermine = document.getElementById('btnAutoDetermine');
-  if (btnAutoDetermine) {
-    btnAutoDetermine.addEventListener('click', () => {
-      autoDeterminePricing();
-    });
-  }
 
   const btnAutoDetermine = document.getElementById('btnAutoDetermine');
   if (btnAutoDetermine) {
@@ -199,12 +189,8 @@ function updateModeUI() {
   if (usSec) {
     if (state.currentPricingMode === 'us') usSec.classList.remove('u-hidden');
     else usSec.classList.add('u-hidden');
-    if (state.currentPricingMode === 'us') usSec.classList.remove('u-hidden');
-    else usSec.classList.add('u-hidden');
   }
   if (otherSec) {
-    if (state.currentPricingMode === 'other') otherSec.classList.remove('u-hidden');
-    else otherSec.classList.add('u-hidden');
     if (state.currentPricingMode === 'other') otherSec.classList.remove('u-hidden');
     else otherSec.classList.add('u-hidden');
   }
@@ -244,7 +230,6 @@ export function rollKw() {
   const shuffled = [...KW_LIST].sort(() => Math.random() - 0.5);
   const picked = shuffled.slice(0, count);
   resultDiv.innerHTML = picked.map(w => `<span class="kw-item" title="クリックでコピー">${w}</span>`).join('');
-  resultDiv.innerHTML = picked.map(w => `<span class="kw-item" title="クリックでコピー">${w}</span>`).join('');
 }
 
 export function copyOneKw(span) {
@@ -265,7 +250,6 @@ export function copyOneKw(span) {
   span.style.background = 'var(--green-bg)';
   setTimeout(() => { 
     span.textContent = orig; 
-    span.style.background = ''; 
     span.style.background = ''; 
   }, 800);
 }
