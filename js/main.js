@@ -312,10 +312,7 @@ async function autoDeterminePricing() {
   const compShipEl = document.getElementById('compShipping');
   const countryEl = document.getElementById('destCountry'); 
   
-  // ★修正：HTMLの正しいID（btnAutoDetermine）に合わせました
   const btn = document.getElementById('btnAutoDetermine'); 
-  
-  // 処理開始時にボタンを無効化（ここで先ほど追加したグレーのCSSが適用されます）
   if (btn) btn.disabled = true; 
 
   const updateMsg = async (text, color = '#4b5563') => {
@@ -332,7 +329,7 @@ async function autoDeterminePricing() {
   };
 
   const candidates = [];
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= 4; i++) {
     const p = getVal('comp' + i + 'Price');
     const s = getVal('comp' + i + 'Ship');
     if (p > 0) {
@@ -343,7 +340,7 @@ async function autoDeterminePricing() {
   if (candidates.length === 0) {
     if (benchEl) benchEl.textContent = 'データ未入力';
     await updateMsg('候補データが入力されていません。', '#dc2626');
-    if (btn) btn.disabled = false; // エラー終了時もボタンを復活
+    if (btn) btn.disabled = false;
     return;
   }
 
@@ -351,15 +348,33 @@ async function autoDeterminePricing() {
   await updateMsg('⏳ システムが利益と最安値を検証しています...', '#ea580c');
   await new Promise(resolve => setTimeout(resolve, 100));
 
+  // 35%の防衛フィルター（送料ぼったくりセラーの除外）
   let validCandidates = candidates.filter(c => c.ratio <= 0.35);
   if (validCandidates.length === 0) {
     validCandidates = candidates;
   }
 
+  // アメリカ向け（Total最安）と他国向け（本体価格最安）を選出
   const bestUs = [...validCandidates].sort((a, b) => a.total - b.total)[0];
   const bestOther = [...validCandidates].sort((a, b) => a.price - b.price)[0];
 
+  // ★修正：全体の青色バーに騙されず、絶対基準である「FedEx FICP」の合否を直接確認する
+  const checkProfitability = () => {
+    const names = document.querySelectorAll('.mr-name');
+    for (const nameEl of names) {
+      if (nameEl.textContent.trim() === 'International Connect Plus') {
+        const row = nameEl.closest('.method-row');
+        return row && row.querySelector('.tag-ok') !== null;
+      }
+    }
+    // FICPが見つからない（通信エラーや非対応国等）場合の予備
+    const summaryBar = document.querySelector('.profit-summary');
+    return summaryBar && !summaryBar.classList.contains('negative');
+  };
+
+  // ==========================================
   // STEP 1: 他国向け(DDU)の利益チェック【ヨーロッパ基準】
+  // ==========================================
   setPricingMode('other'); 
   if (countryEl) await updateInput(countryEl, 'eu');
   await updateInput(sellEl, bestOther.price);
@@ -367,18 +382,19 @@ async function autoDeterminePricing() {
   await fetchSpeedpakRates();
   calculate();
 
-  const summaryBar = document.querySelector('.profit-summary');
-  const isOtherProfitable = summaryBar && !summaryBar.classList.contains('negative');
+  const isOtherProfitable = checkProfitability();
 
   if (!isOtherProfitable) {
     if (benchEl) benchEl.textContent = `本体 $${bestOther.price.toFixed(2)} + 送料 $${bestOther.ship.toFixed(2)} (候補${bestOther.id})`;
-    await updateMsg('【出品NG】他国(ヨーロッパ基準)で売れた場合に利益基準を満たせません。', '#dc2626');
+    await updateMsg('【出品NG】他国(ヨーロッパ基準)で売れた場合に利益基準(1000円&10%)を満たせません。', '#dc2626');
     saveState(state);
-    if (btn) btn.disabled = false; // 処理終了でボタンを復活
+    if (btn) btn.disabled = false;
     return; 
   }
 
+  // ==========================================
   // STEP 2: アメリカ向け(DDP)の利益チェック
+  // ==========================================
   setPricingMode('us'); 
   if (countryEl) await updateInput(countryEl, 'us');
   await updateInput(sellEl, bestUs.price);
@@ -387,20 +403,31 @@ async function autoDeterminePricing() {
   await fetchSpeedpakRates();
   calculate();
 
-  const isUsProfitable = summaryBar && !summaryBar.classList.contains('negative');
+  const isUsProfitableInUs = checkProfitability();
 
+  // アメリカ向けの価格で、ヨーロッパに売れた場合のクロスチェック
+  let isUsProfitableInEu = false;
+  if (isUsProfitableInUs) {
+    if (countryEl) await updateInput(countryEl, 'eu');
+    await fetchSpeedpakRates();
+    calculate();
+    isUsProfitableInEu = checkProfitability();
+  }
+
+  // ==========================================
   // STEP 3: 最終判定の画面表示
-  if (isUsProfitable) {
+  // ==========================================
+  if (isUsProfitableInUs && isUsProfitableInEu) {
     if (benchEl) benchEl.textContent = `本体 $${bestUs.price.toFixed(2)} + 送料 $${bestUs.ship.toFixed(2)} (候補${bestUs.id}を採用)`;
     await updateMsg('【採用】アメリカ向け(DDP)で設定（他国に売れても利益確保OK）', '#16a34a');
     
-    // アメリカ向け判定になった場合も、最終的な配送先表示は「ヨーロッパ」にしておく
     if (countryEl) {
       await updateInput(countryEl, 'eu');
       await fetchSpeedpakRates();
       calculate();
     }
   } else {
+    // アメリカ最安値だとヨーロッパで利益が割れる、またはアメリカ最安値が不可の場合は、本体最安値（Other）を採用
     setPricingMode('other');
     if (countryEl) await updateInput(countryEl, 'eu');
     
@@ -411,11 +438,14 @@ async function autoDeterminePricing() {
     calculate();
 
     if (benchEl) benchEl.textContent = `本体 $${bestOther.price.toFixed(2)} + 送料 $${bestOther.ship.toFixed(2)} (候補${bestOther.id}を採用)`;
-    await updateMsg('【採用】他国向け(DDU)で設定（アメリカ最安値は不可ですが、他国で利益OK）', '#2563eb');
+    
+    if (isUsProfitableInUs && !isUsProfitableInEu) {
+      await updateMsg('【採用】他国向け(DDU)で設定（米最安値では他国利益が割れるため、本体最安値を採用）', '#2563eb');
+    } else {
+      await updateMsg('【採用】他国向け(DDU)で設定（アメリカ最安値は不可ですが、他国で利益OK）', '#2563eb');
+    }
   }
   
   saveState(state);
-  
-  // 処理終了でボタンを復活（色が元に戻る）
   if (btn) btn.disabled = false;
 }
