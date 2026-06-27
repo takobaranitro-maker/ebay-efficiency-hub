@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>eBayリサーチツール</title>
+  <title>eBayリサーチツール - セラーリサーチ版</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -51,6 +51,58 @@
 <div class="main-layout">
   <div class="left-column">
     
+    <div class="card">
+      <h2><span class="icon">🤖</span> 最安値ベンチマーク自動判定</h2>
+      <div class="group-note">※eBayで「Price + Shipping: lowest first」で並び替え、上位3つの価格をそのまま入力してください。</div>
+      
+      <div class="grid3 u-mb-4">
+        <div class="field"><label>順位</label></div>
+        <div class="field"><label>本体価格 ($)</label></div>
+        <div class="field"><label>送料 ($)</label></div>
+      </div>
+      
+      <div class="grid3 u-mb-2">
+        <div class="field u-text-center"><span class="text2-strong u-mt-4">1番安い</span></div>
+        <div class="field"><input type="text" inputmode="decimal" id="comp1Price" value="0" class="highlight"></div>
+        <div class="field"><input type="text" inputmode="decimal" id="comp1Ship" value="0" class="highlight"></div>
+      </div>
+      <div class="grid3 u-mb-2">
+        <div class="field u-text-center"><span class="text2-strong u-mt-4">2番目</span></div>
+        <div class="field"><input type="text" inputmode="decimal" id="comp2Price" value="0" class="highlight"></div>
+        <div class="field"><input type="text" inputmode="decimal" id="comp2Ship" value="0" class="highlight"></div>
+      </div>
+      <div class="grid3 u-mb-4">
+        <div class="field u-text-center"><span class="text2-strong u-mt-4">3番目</span></div>
+        <div class="field"><input type="text" inputmode="decimal" id="comp3Price" value="0" class="highlight"></div>
+        <div class="field"><input type="text" inputmode="decimal" id="comp3Ship" value="0" class="highlight"></div>
+      </div>
+      
+      <div style="margin-bottom: 20px; padding: 12px; background-color: #f0fdf4; border: 2px dashed #16a34a; border-radius: 8px;">
+        <div class="grid3">
+          <div class="field u-text-center">
+            <span class="text2-strong" style="color: #166534; font-size: 0.9em; display: inline-block; margin-top: 8px;">【ベンチマーク<br>セラー】</span>
+          </div>
+          <div class="field">
+            <input type="text" inputmode="decimal" id="comp4Price" value="0" style="border-color: #16a34a; background-color: #ffffff;">
+          </div>
+          <div class="field">
+            <input type="text" inputmode="decimal" id="comp4Ship" value="0" style="border-color: #16a34a; background-color: #ffffff;">
+          </div>
+        </div>
+        <div style="font-size: 11.5px; color: #166534; text-align: center; margin-top: 8px; font-weight: bold;">
+          ※1〜3番目以外にベンチマークセラーがいる場合はここに入力（既にいれば0のままでOK）
+        </div>
+      </div>
+      <div class="price-box-primary u-mt-4">
+        <div class="l-flex-align-center u-mb-2" style="justify-content: space-between;">
+          <div class="price-box-label-primary">システム判定結果</div>
+          <button id="btnAutoDetermine" class="btn-primary-small" style="background: #1e40af; border-color: #1e40af;">最安値を自動判定</button>
+        </div>
+        <div id="adoptedBenchmark" class="price-box-val-primary">本体 $0.00 + 送料 $0.00</div>
+        <div id="adoptedReason" class="tool-desc u-mt-2 u-text-center">-</div>
+      </div>
+    </div>
+
     <div class="card">
       <h2><span class="icon">📦</span> 商品情報</h2>
       <div class="mode-bar">
@@ -210,7 +262,7 @@
         <div class="p-label">推奨便 利益</div>
         <div class="p-val" id="bestProfitYen">-</div>
         <div class="p-sub" id="bestMethodName">-</div>
-        <div class="profit-summary-note">利益OK判定：≥¥500 かつ ≥5%</div>
+        <div class="profit-summary-note">セラーリサーチ：ベンチマークより安く出品できればOK</div>
       </div>
       <div class="profit-summary-divider"></div>
       <div class="profit-summary-item" id="summaryRefund">
@@ -229,7 +281,7 @@
       <div id="resultsContainer"></div>
     </div>
     <div class="note footer-note">
-      ※SpeedPAK系送料はAPIからリアルタイム取得（燃油サーチャージ込み）。eLogi/日本郵便は固定テーブル。利益OK判定：≥¥500 かつ ≥5%。還付＝仕入税＋eBay手数料税。
+      ※SpeedPAK系送料はAPIからリアルタイム取得。利益OK判定：ベンチマーク価格以下かつ赤字でないこと。
     </div>
   </div>
 </div>

@@ -16,6 +16,8 @@ export function fmtD(n) {
 
 const SAVE_KEY = 'ebayCalcState';
 const SAVE_FIELDS = [
+  'comp1Price', 'comp1Ship', 'comp2Price', 'comp2Ship', 'comp3Price', 'comp3Ship',
+  'comp4Price', 'comp4Ship',
   'purchasePrice', 'sellingPrice', 'compShipping', 'weight', 'length', 'width', 'height',
   'categoryNo', 'exchangeRate', 'fuelSurcharge', 'usShippingPct',
   'ebayFeeRate', 'feeThreshold', 'ebayFeeRate2', 'perOrderFee',

@@ -492,7 +492,7 @@ export function calculate() {
     }
   }
 
-  // 利益とBest判定の計算
+// 利益とBest判定の計算
   let allMethods = [];
   groups.forEach(g => {
     g.methods.forEach(m => {
@@ -500,7 +500,20 @@ export function calculate() {
         m.profit = Math.round(netReceived - purchase - m.cost);
         m.profitWithRefund = Math.round(m.profit + totalRefund);
         m.profitRate = purchase > 0 ? (m.profit / purchase * 100) : 0;
-        m.isOk = m.canSend && m.profit >= 500 && m.profitRate >= 5;
+        
+        // ★修正：確実に画面上の要素から直接、最新の仕入値を取得する
+        let purchasePrice = 0;
+        const purchaseInput = document.getElementById('purchasePrice');
+        if (purchaseInput && purchaseInput.value) {
+          purchasePrice = parseFloat(purchaseInput.value.replace(/,/g, '')) || 0;
+        }
+        
+        // ★セラーリサーチ対応：
+        // calculator.js自体は料金と利益を計算するものであり、
+        // 「ベンチマークより安いか」の判定そのものはmain.jsの autoDeterminePrices() に委譲する設計であるため、
+        // ここでの m.isOk は「最低限、利益がマイナス（赤字）でないか」を判定基準に変更します。
+        // （以前の 1000円 & 10% ルールは撤廃）
+        m.isOk = m.canSend && m.profit >= 0;
       } else {
         m.profit = null; m.profitWithRefund = null; m.profitRate = 0; m.isOk = false;
       }
@@ -623,7 +636,7 @@ export function calculate() {
 
       const tagItems = [];
       if (m.isBest) tagItems.push('<span class="method-tag tag-recommend">推奨</span>');
-      if (m.isOk) tagItems.push('<span class="method-tag tag-ok">利益OK</span>');
+      if (m.isOk) tagItems.push('<span class="method-tag tag-ok">黒字</span>');
       if (m.sub && m.sub.includes('DDP')) tagItems.push('<span class="method-tag tag-ddp">DDP</span>');
       if (g.tag === '速達') tagItems.push('<span class="method-tag tag-fast">速達</span>');
       if (g.tag === '比較用') tagItems.push('<span class="method-tag tag-compare">比較用</span>');
