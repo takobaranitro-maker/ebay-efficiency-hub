@@ -21,7 +21,7 @@ export function getEffectiveSellingPrice() {
     if (compTotal <= 0) return 0;
     const total = Math.round((compTotal - 0.01) * 100) / 100;
     if (state.currentCountry !== 'us' && total <= 2499.99) {
-      return Math.round((total / 1.184) * 100) / 100;
+      return Math.round((total / 1.15) * 100) / 100; // ★1.184から1.15へ変更
     }
     return total;
   } else {
@@ -47,7 +47,7 @@ function updatePricingDisplay() {
         document.getElementById('listPrice').textContent = '$' + fmtD(total);
         document.getElementById('listShipping').textContent = '$0.00';
       } else {
-        const itemPrice = Math.round((total / 1.184) * 100) / 100;
+        const itemPrice = Math.round((total / 1.15) * 100) / 100; // ★1.184から1.15へ変更
         const usShipping = Math.round((total - itemPrice) * 100) / 100;
         document.getElementById('listPrice').textContent = '$' + fmtD(itemPrice);
         document.getElementById('listShipping').textContent = '$' + fmtD(usShipping);
@@ -64,7 +64,6 @@ function updatePricingDisplay() {
 }
 
 function updateFeeDescription() {
-  // Configと連動してカテゴリ判定
   const no = parseInt(document.getElementById('categoryNo').value) || 0;
   const catName = getCategoryName(no);
   if (catName) {
@@ -79,7 +78,6 @@ function updateFeeDescription() {
   const effectiveGroup = plan[state.currentFeeGroup] ? state.currentFeeGroup : 'default';
   const g = plan[effectiveGroup];
 
-  // UI上の数値を連動更新
   if (g.special === 'shoes') {
     document.getElementById('ebayFeeRate').value = g.rate_low;
     document.getElementById('feeThreshold').value = g.threshold;
@@ -501,19 +499,15 @@ export function calculate() {
         m.profitWithRefund = Math.round(m.profit + totalRefund);
         m.profitRate = purchase > 0 ? (m.profit / purchase * 100) : 0;
         
-        // ★修正：確実に画面上の要素から直接、最新の仕入値を取得する
         let purchasePrice = 0;
         const purchaseInput = document.getElementById('purchasePrice');
         if (purchaseInput && purchaseInput.value) {
           purchasePrice = parseFloat(purchaseInput.value.replace(/,/g, '')) || 0;
         }
         
-        // ★セラーリサーチ対応：
-        // calculator.js自体は料金と利益を計算するものであり、
-        // 「ベンチマークより安いか」の判定そのものはmain.jsの autoDeterminePrices() に委譲する設計であるため、
-        // ここでの m.isOk は「最低限、利益がマイナス（赤字）でないか」を判定基準に変更します。
-        // （以前の 1000円 & 10% ルールは撤廃）
-        m.isOk = m.canSend && m.profit >= 0;
+        // ★利益が 1000円 以上、かつ、仕入値の 10% 以上であること（復活）
+        const targetProfit = purchasePrice * 0.1;
+        m.isOk = m.canSend && m.profit >= 1000 && m.profit >= targetProfit;
       } else {
         m.profit = null; m.profitWithRefund = null; m.profitRate = 0; m.isOk = false;
       }
@@ -636,7 +630,7 @@ export function calculate() {
 
       const tagItems = [];
       if (m.isBest) tagItems.push('<span class="method-tag tag-recommend">推奨</span>');
-      if (m.isOk) tagItems.push('<span class="method-tag tag-ok">黒字</span>');
+      if (m.isOk) tagItems.push('<span class="method-tag tag-ok">利益OK</span>');
       if (m.sub && m.sub.includes('DDP')) tagItems.push('<span class="method-tag tag-ddp">DDP</span>');
       if (g.tag === '速達') tagItems.push('<span class="method-tag tag-fast">速達</span>');
       if (g.tag === '比較用') tagItems.push('<span class="method-tag tag-compare">比較用</span>');

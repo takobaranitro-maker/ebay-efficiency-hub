@@ -343,10 +343,8 @@ async function autoDeterminePricing() {
   let benchmark = null;
 
   if (bmPrice > 0) {
-    // 特任枠にベンチマークが入力されている場合
     benchmark = { id: 4, price: bmPrice, ship: bmShip, total: bmPrice + bmShip };
   } else if (candidates.length > 0) {
-    // 特任枠が0の場合、1〜3番手の中でTotalが最も安いものをベンチマークと見なす
     benchmark = [...candidates].sort((a, b) => a.total - b.total)[0];
   }
 
@@ -361,7 +359,6 @@ async function autoDeterminePricing() {
   await updateMsg('⏳ システムがベンチマークとの価格差を検証しています...', '#ea580c');
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // 判定用ヘルパー：黒字(profit >= 0)かを判定
   const checkProfitability = () => {
     const names = document.querySelectorAll('.mr-name');
     for (const nameEl of names) {
@@ -374,17 +371,11 @@ async function autoDeterminePricing() {
     return summaryBar && !summaryBar.classList.contains('negative');
   };
 
-  // 目標とする出品価格（ベンチマークより安くする）
-  // アメリカ向け（Total基準）：ベンチマークより1セント安く
   const targetUsTotal = Math.round((benchmark.total - 0.01) * 100) / 100;
   const targetUsPrice = Math.max(0, Math.round((targetUsTotal - benchmark.ship) * 100) / 100);
-  
-  // 他国向け（本体価格基準）：ルールに基づき $0.1 下げる
   const targetOtherPrice = Math.max(0, Math.round((benchmark.price - 0.10) * 100) / 100);
 
-  // ==========================================
-  // STEP 1: アメリカ向け(US)でベンチマークより安く出せるか？
-  // ==========================================
+  // STEP 1: アメリカ向け(US)
   setPricingMode('us'); 
   if (countryEl) await updateInput(countryEl, 'us');
   await updateInput(sellEl, targetUsPrice);
@@ -403,13 +394,11 @@ async function autoDeterminePricing() {
     return;
   }
 
-  // ==========================================
-  // STEP 2: アメリカがNGの場合、他国向け(Other)でベンチマークより安く出せるか？
-  // ==========================================
+  // STEP 2: 他国向け(Other)
   setPricingMode('other'); 
-  if (countryEl) await updateInput(countryEl, 'eu'); // 検証用代表国としてEUを使用
+  if (countryEl) await updateInput(countryEl, 'eu');
   await updateInput(sellEl, targetOtherPrice);
-  await updateInput(compShipEl, 0); // Otherモードでは競合送料は不要
+  await updateInput(compShipEl, 0); 
   
   await fetchSpeedpakRates();
   calculate();
@@ -424,11 +413,10 @@ async function autoDeterminePricing() {
     return;
   }
 
-  // ==========================================
-  // STEP 3: どちらも赤字になる場合は出品NG
-  // ==========================================
-  if (benchEl) benchEl.textContent = `ベンチマーク価格到達不可`;
-  await updateMsg('【出品NG】ベンチマークより安く出品すると赤字になります。', '#dc2626');
+  // STEP 3: どちらも基準未達になる場合は出品NG
+  if (benchEl) benchEl.textContent = `利益基準(1000円/10%)未達`;
+  // ★赤字になります→利益基準を満たせません に変更
+  await updateMsg('【出品NG】ベンチマークより安く出品すると利益基準を満たせません。', '#dc2626');
   
   saveState(state);
   if (btn) btn.disabled = false;
