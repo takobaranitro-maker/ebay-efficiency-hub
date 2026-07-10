@@ -304,7 +304,7 @@ function shopSearch() {
   if (opened === 0) alert('検索するサイトを選択してください');
 }
 
-// ===== セラーリサーチ用 自動判定ロジック =====
+// ===== セラーリサーチ用 段階的自動判定ロジック =====
 async function autoDeterminePricing() {
   const reasonEl = document.getElementById('adoptedReason');
   const benchEl = document.getElementById('adoptedBenchmark');
@@ -328,7 +328,7 @@ async function autoDeterminePricing() {
     await new Promise(resolve => setTimeout(resolve, 50)); 
   };
 
-  // 1〜3番手、およびベンチマーク(4番手)を取得
+  // 1〜3番手を取得（送料ぼったくりフィルター撤廃済）
   const candidates = [];
   for (let i = 1; i <= 3; i++) {
     const p = getVal('comp' + i + 'Price');
@@ -338,6 +338,7 @@ async function autoDeterminePricing() {
     }
   }
 
+  // ベンチマーク(4番手)の確定
   const bmPrice = getVal('comp4Price');
   const bmShip = getVal('comp4Ship');
   let benchmark = null;
@@ -356,9 +357,27 @@ async function autoDeterminePricing() {
   }
 
   if (benchEl) benchEl.textContent = '最適な価格を計算中...';
-  await updateMsg('⏳ システムがベンチマークとの価格差を検証しています...', '#ea580c');
+  await updateMsg('⏳ システムが利益条件を満たす最安値を探索しています...', '#ea580c');
   await new Promise(resolve => setTimeout(resolve, 100));
 
+  // 「ベンチマークより高い候補」を除外し、有効なターゲットリストを作成（絶対上限ルール）
+  let validTargets = candidates.filter(c => c.total <= benchmark.total);
+  validTargets.push(benchmark);
+
+  // 重複排除（例: ベンチマークが1番手から選ばれた場合や、同じ価格のセラーがいた場合）
+  const uniqueTargets = [];
+  const seenIds = new Set();
+  for (const t of validTargets) {
+    if (!seenIds.has(t.id)) {
+      seenIds.add(t.id);
+      uniqueTargets.push(t);
+    }
+  }
+
+  // 「Total（本体＋送料）が安い順」に並び替え
+  uniqueTargets.sort((a, b) => a.total - b.total);
+
+  // 利益条件（1000円＆10%以上）を満たしているかチェックする関数
   const checkProfitability = () => {
     const names = document.querySelectorAll('.mr-name');
     for (const nameEl of names) {
@@ -371,53 +390,95 @@ async function autoDeterminePricing() {
     return summaryBar && !summaryBar.classList.contains('negative');
   };
 
-  const targetUsTotal = Math.round((benchmark.total - 0.01) * 100) / 100;
-  const targetUsPrice = Math.max(0, Math.round((targetUsTotal - benchmark.ship) * 100) / 100);
-  const targetOtherPrice = Math.max(0, Math.round((benchmark.price - 0.10) * 100) / 100);
+  let adoptedTarget = null;
+  let adoptedType = ''; // 'us' or 'other'
+  let adoptedUsPrice = 0;
+  let adoptedOtherPrice = 0;
 
-  // STEP 1: アメリカ向け(US)
+  // ==========================================
+  // STEP 1: アメリカ向け(US)の探索ループ（最安値から順に検証）
+  // ==========================================
   setPricingMode('us'); 
   if (countryEl) await updateInput(countryEl, 'us');
-  await updateInput(sellEl, targetUsPrice);
-  await updateInput(compShipEl, benchmark.ship);
 
-  await fetchSpeedpakRates();
-  calculate();
+  for (const target of uniqueTargets) {
+    // アメリカ向け：Total価格から一律 $0.10 下げる
+    const targetUsTotal = Math.round((target.total - 0.10) * 100) / 100;
+    const targetUsPrice = Math.max(0, Math.round((targetUsTotal - target.ship) * 100) / 100);
 
-  const isUsProfitable = checkProfitability();
+    await updateInput(sellEl, targetUsPrice);
+    await updateInput(compShipEl, target.ship);
 
-  if (isUsProfitable) {
-    if (benchEl) benchEl.textContent = `本体 $${targetUsPrice.toFixed(2)} + 送料 $${benchmark.ship.toFixed(2)}`;
-    await updateMsg('【出品OK】アメリカ向け(US)でベンチマークより安く出品可能です！', '#16a34a');
-    saveState(state);
-    if (btn) btn.disabled = false;
-    return;
+    await fetchSpeedpakRates();
+    calculate();
+
+    if (checkProfitability()) {
+      adoptedTarget = target;
+      adoptedType = 'us';
+      adoptedUsPrice = targetUsPrice;
+      break; // 利益条件を満たす最安値が見つかった瞬間にループを抜ける！
+    }
   }
 
-  // STEP 2: 他国向け(Other)
-  setPricingMode('other'); 
-  if (countryEl) await updateInput(countryEl, 'eu');
-  await updateInput(sellEl, targetOtherPrice);
-  await updateInput(compShipEl, 0); 
-  
-  await fetchSpeedpakRates();
-  calculate();
+  // ==========================================
+  // STEP 2: 他国向け(Other)の探索ループ（USで全滅した場合）
+  // ==========================================
+  if (!adoptedTarget) {
+    setPricingMode('other'); 
+    if (countryEl) await updateInput(countryEl, 'eu');
 
-  const isOtherProfitable = checkProfitability();
+    for (const target of uniqueTargets) {
+      // 他国向け：本体価格から一律 $0.10 下げる
+      const targetOtherPrice = Math.max(0, Math.round((target.price - 0.10) * 100) / 100);
 
-  if (isOtherProfitable) {
-    if (benchEl) benchEl.textContent = `本体 $${targetOtherPrice.toFixed(2)} + 送料(自動計算)`;
-    await updateMsg('【出品OK】他国向け(Other)ならベンチマークより安く出品可能です！', '#2563eb');
-    saveState(state);
-    if (btn) btn.disabled = false;
-    return;
+      await updateInput(sellEl, targetOtherPrice);
+      await updateInput(compShipEl, 0); 
+
+      await fetchSpeedpakRates();
+      calculate();
+
+      if (checkProfitability()) {
+        adoptedTarget = target;
+        adoptedType = 'other';
+        adoptedOtherPrice = targetOtherPrice;
+        break; // 利益条件を満たす最安値が見つかった瞬間にループを抜ける！
+      }
+    }
   }
 
-  // STEP 3: どちらも基準未達になる場合は出品NG
-  if (benchEl) benchEl.textContent = `利益基準(1000円/10%)未達`;
-  // ★赤字になります→利益基準を満たせません に変更
-  await updateMsg('【出品NG】ベンチマークより安く出品すると利益基準を満たせません。', '#dc2626');
-  
+  // ==========================================
+  // STEP 3: 結果の反映とメッセージ出力
+  // ==========================================
+  if (adoptedTarget) {
+    if (adoptedType === 'us') {
+      // USで合格した場合、状態をUSに戻す（Otherループ等で書き換わっている可能性があるため）
+      setPricingMode('us');
+      if (countryEl) await updateInput(countryEl, 'us');
+      await updateInput(sellEl, adoptedUsPrice);
+      await updateInput(compShipEl, adoptedTarget.ship);
+      await fetchSpeedpakRates();
+      calculate();
+
+      benchEl.textContent = `本体 $${adoptedUsPrice.toFixed(2)} + 送料 $${adoptedTarget.ship.toFixed(2)}`;
+      await updateMsg('【出品OK】アメリカ向け(US)でベンチマークより安く出品可能です！', '#16a34a');
+    } else {
+      // Otherで合格した場合
+      setPricingMode('other');
+      if (countryEl) await updateInput(countryEl, 'eu');
+      await updateInput(sellEl, adoptedOtherPrice);
+      await updateInput(compShipEl, 0);
+      await fetchSpeedpakRates();
+      calculate();
+
+      benchEl.textContent = `本体 $${adoptedOtherPrice.toFixed(2)} + 送料(自動計算)`;
+      await updateMsg('【出品OK】他国向け(Other)ならベンチマークより安く出品可能です！', '#2563eb');
+    }
+  } else {
+    // どの候補（ベンチマーク含む）でも利益条件を達成できなかった場合
+    if (benchEl) benchEl.textContent = `利益基準(1000円/10%)未達`;
+    await updateMsg('【出品NG】ベンチマークより安く出品すると利益基準を満たせません。', '#dc2626');
+  }
+
   saveState(state);
   if (btn) btn.disabled = false;
 }
