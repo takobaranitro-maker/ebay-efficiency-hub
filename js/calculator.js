@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { getVal, fmt, fmtD } from './utils.js';
-import { COUNTRIES, FEE_RATES, getGroupForCategory, getCategoryName } from './config.js';
+import { COUNTRIES, FEE_RATES, getGroupForCategory, getCategoryName, CATEGORY_TO_FEE_GROUP, ACTUAL_RATES } from './config.js';
 import * as Rates from './shipping-rates.js';
 import { spCost, spDuty, spDutyDetails, spFeeDetails } from './api.js';
 
@@ -21,7 +21,7 @@ export function getEffectiveSellingPrice() {
     if (compTotal <= 0) return 0;
     const total = Math.round((compTotal - 0.01) * 100) / 100;
     if (state.currentCountry !== 'us' && total <= 2499.99) {
-      return Math.round((total / 1.15) * 100) / 100; // ★1.184から1.15へ変更
+      return Math.round((total / 1.15) * 100) / 100;
     }
     return total;
   } else {
@@ -47,7 +47,7 @@ function updatePricingDisplay() {
         document.getElementById('listPrice').textContent = '$' + fmtD(total);
         document.getElementById('listShipping').textContent = '$0.00';
       } else {
-        const itemPrice = Math.round((total / 1.15) * 100) / 100; // ★1.184から1.15へ変更
+        const itemPrice = Math.round((total / 1.15) * 100) / 100;
         const usShipping = Math.round((total - itemPrice) * 100) / 100;
         document.getElementById('listPrice').textContent = '$' + fmtD(itemPrice);
         document.getElementById('listShipping').textContent = '$' + fmtD(usShipping);
@@ -61,6 +61,44 @@ function updatePricingDisplay() {
     const usShippingRef = selling > 0 ? Math.round(selling * usShippingPct * 100) / 100 : 0;
     document.getElementById('usShippingRef').textContent = usShippingRef > 0 ? '$' + fmtD(usShippingRef) : '-';
   }
+}
+
+function getActualBaseRateForCategory() {
+  if (!ACTUAL_RATES || !ACTUAL_RATES.rates) return null;
+  const catId = parseInt(document.getElementById('categoryNo').value);
+  if (!catId) return null;
+  const leaf = getCategoryName(catId);
+  if (!leaf) return null;
+  const grp = getGroupForCategory(catId);
+
+  const plan = FEE_RATES[state.currentStorePlan];
+  if (!plan[grp]) return null;
+
+  const isStore = (state.currentStorePlan === 'store');
+  let pW = 0, pC = 0;
+  let aW = 0, aC = 0;
+  
+  for (const path in ACTUAL_RATES.rates) {
+    const segs = path.split('|');
+    if (segs[segs.length - 1].trim() !== leaf) continue;
+    if (CATEGORY_TO_FEE_GROUP && CATEGORY_TO_FEE_GROUP[segs[0].trim()] !== grp) continue;
+
+    const rd = ACTUAL_RATES.rates[path];
+    if (!rd) continue;
+    if (rd.count) { aW += rd.avgRate * rd.count; aC += rd.count; }
+    const pRate = isStore ? rd.avgRateStore : rd.avgRateNoStore;
+    const pCnt  = isStore ? rd.countStore   : rd.countNoStore;
+    if (pRate != null && pCnt) { pW += pRate * pCnt; pC += pCnt; }
+  }
+  
+  let billed;
+  if (pC >= 3) billed = pW / pC;
+  else if (aC >= 3) billed = aW / aC;
+  else return null;
+
+  const _tr = getVal('taxRate');
+  const taxMul = 1 + ((_tr > 0 ? _tr : 10) / 100);
+  return Math.round(billed / taxMul * 100) / 100;
 }
 
 function updateFeeDescription() {
@@ -87,7 +125,8 @@ function updateFeeDescription() {
     document.getElementById('feeThreshold').value = g.tiers[0][1];
     document.getElementById('ebayFeeRate2').value = g.tiers.length > 1 ? g.tiers[1][0] : 0;
   } else {
-    document.getElementById('ebayFeeRate').value = g.rate1;
+    const actualBase = getActualBaseRateForCategory();
+    document.getElementById('ebayFeeRate').value = (actualBase != null ? actualBase : g.rate1);
     document.getElementById('feeThreshold').value = g.th;
     document.getElementById('ebayFeeRate2').value = g.rate2;
   }
@@ -102,36 +141,37 @@ function updateFeeDescription() {
 
   let fvf = 0;
   const appliedRates = [];
+  const _tr = getVal('taxRate');
+  const taxMul = 1 + ((_tr > 0 ? _tr : 10) / 100);
+
+  const r1 = getVal('ebayFeeRate');
+  const r2 = getVal('ebayFeeRate2');
+  const th = getVal('feeThreshold');
+
   if (g.special === 'shoes') {
-    if (selling >= g.threshold) {
-      fvf = selling * (g.rate_high / 100);
-      appliedRates.push(g.rate_high + '%');
+    if (selling >= th) {
+      fvf = selling * (r2 / 100);
+      appliedRates.push(r2 + '%');
     } else {
-      fvf = selling * (g.rate_low / 100);
-      appliedRates.push(g.rate_low + '%');
+      fvf = selling * (r1 / 100);
+      appliedRates.push(r1 + '%');
     }
   } else if (g.tiers) {
-    let remaining = selling;
-    let prevLimit = 0;
-    for (const [rate, limit] of g.tiers) {
-      const band = limit === Infinity ? remaining : Math.min(remaining, limit - prevLimit);
-      if (band <= 0) break;
-      fvf += band * (rate / 100);
-      appliedRates.push(rate + '%');
-      remaining -= band;
-      prevLimit = limit;
-      if (remaining <= 0) break;
-    }
+     fvf = selling * (r1 / 100);
+     appliedRates.push(r1 + '%');
   } else {
-    if (selling <= g.th) {
-      fvf = selling * (g.rate1 / 100);
-      appliedRates.push(g.rate1 + '%');
+    if (selling <= th) {
+      fvf = selling * (r1 / 100);
+      appliedRates.push(r1 + '%');
     } else {
-      fvf = g.th * (g.rate1 / 100) + (selling - g.th) * (g.rate2 / 100);
-      appliedRates.push(g.rate1 + '%', g.rate2 + '%');
+      fvf = th * (r1 / 100) + (selling - th) * (r2 / 100);
+      appliedRates.push(r1 + '%', r2 + '%');
     }
   }
-  descEl.textContent = 'FVF: ' + appliedRates.join('+') + '($' + fvf.toFixed(2) + ')';
+  
+  const billedFvf = fvf * taxMul;
+  const billedPct = selling > 0 ? (billedFvf / selling * 100) : 0;
+  descEl.textContent = 'FVF(税込): ' + billedPct.toFixed(2) + '% ($' + billedFvf.toFixed(2) + ')';
 }
 
 function calcFVFBase(amount, grp, ebayRate1, threshold, ebayRate2, perOrder) {
@@ -167,10 +207,44 @@ function calcFVFBase(amount, grp, ebayRate1, threshold, ebayRate2, perOrder) {
   return { fvfBase, effectivePerOrder };
 }
 
+function getUsDuty(cc, selling, rate, isDdpEnabled) {
+  if (cc.code !== 'US' || !isDdpEnabled) return { amount: 0, isEstimate: false, loading: false };
+  if (state.speedpakLoading || (!state.speedpakRates && selling > 0)) {
+    return { amount: 0, isEstimate: false, loading: true };
+  }
+  const apiDuty = spDuty();
+  if (apiDuty > 0) return { amount: apiDuty, isEstimate: false, loading: false };
+  
+  if (selling > 0 && rate > 0) {
+    return { amount: Math.round(selling * 0.10 * rate), isEstimate: true, loading: false };
+  }
+  return { amount: 0, isEstimate: false, loading: false };
+}
+
+function buildDutyFeeDetails(shippingLabel, shippingCost, dutyInfo, zonosFeeJpy = 0) {
+  const details = [{charges: shippingLabel, chargesEn: 'Shipping Rate', freight: shippingCost}];
+  if (dutyInfo.amount > 0) {
+    const apiDetails = spDutyDetails();
+    if (!dutyInfo.isEstimate && apiDetails.length > 0) {
+      apiDetails.forEach(d => details.push(d));
+    } else {
+      const label = dutyInfo.isEstimate ? '推定関税（税率10%概算）' : '推定関税及び税金料金';
+      details.push({charges: label, chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
+    }
+  }
+  if (zonosFeeJpy > 0) {
+    details.push({charges: 'Zonos手数料 ($2 + 関税10%)', chargesEn: 'Zonos Handling Fee', freight: zonosFeeJpy});
+  }
+  return details;
+}
+
 export function calculate() {
   updatePricingDisplay();
   updateFeeDescription();
   
+  // 国がアメリカなら自動でDDPオン、それ以外ならオフ
+  const isDDP = (state.currentCountry === 'us');
+
   const purchase = getVal('purchasePrice');
   const selling = getEffectiveSellingPrice();
   const weightKg = getVal('weight');
@@ -239,19 +313,17 @@ export function calculate() {
 
   const cc = COUNTRIES.find(c => c.id === state.currentCountry) || COUNTRIES[0];
   const ficpTable = Rates.getFicpTable(cc.fedexZone);
-  const ipPkgTable = Rates.getIpPackageTable(cc.fedexZone);
   const dhlTable = Rates.getDhlTable(cc.dhlZone);
-  const dhlEnvRate = Rates.getDhlEnvelopeRate(cc.dhlZone);
 
   const groups = [
     { id: 'fedex',    label: 'FedEx FICP（CPaSS）', tag: '推奨', primary: true,  methods: [], note: '基本的にはこの配送方法でOK' },
     { id: 'fedex-ip', label: 'FedEx IP（CPaSS）',   tag: '速達', primary: false, methods: [], collapsed: true, note: '早い配送方法、少し高い' },
-    { id: 'dhl',      label: 'DHL（CPaSS）',        tag: '推奨', primary: true,  methods: [], note: '安ければ使用OK、基本的にはFedExが安い' },
     { id: 'speedpak', label: 'Economy（CPaSS）',     tag: cc.economy?'4ヶ国限定':'非対応', primary: false, methods: [], note: cc.economy?'配送が遅いので使用する場合はEconomy用のShipping Policyを作成してください':'この国はEconomy非対応です' },
+    { id: 'jppost',   label: '日本郵便', tag: cc.jpOk!==false?'補助':'非対応', primary: false, methods: [], note: cc.jpOk!==false?'CPaSS非対応・自分で発送手続きが必要 (EMSはZonos対応)':(cc.jpZone?'この国は日本郵便の差出が制限されています（△）':'料金テーブル未設定') },
+    { id: 'dhl',      label: 'DHL（CPaSS）',        tag: '推奨', primary: true,  methods: [], note: '安ければ使用OK、基本的にはFedExが安い' },
     { id: 'elogi-ficp', label: 'eLogi FedEx FICP', tag: '比較用', primary: false, methods: [], collapsed: true, note: 'CPaSSと比較用 ※関税は後日請求のため含まれていません' },
     { id: 'elogi-ip',   label: 'eLogi FedEx IP',   tag: '比較用', primary: false, methods: [], collapsed: true, note: 'CPaSSと比較用 ※関税は後日請求のため含まれていません' },
     ...(Rates.getElogiUpsData(cc.upsZone) ? [{ id: 'elogi-ups', label: 'eLogi UPS Express Saver', tag: '比較用', primary: false, methods: [], collapsed: true, note: 'アジア・オーストラリア向けが安い' }] : []),
-    { id: 'jppost',   label: '日本郵便', tag: cc.jpOk!==false?'補助':'非対応', primary: false, methods: [], note: cc.jpOk!==false?'CPaSS非対応・自分で発送手続きが必要':(cc.jpZone?'この国は日本郵便の差出が制限されています（△）':'料金テーブル未設定') },
   ];
 
   function addMethod(groupId, m) {
@@ -263,7 +335,19 @@ export function calculate() {
   const _loading = state.speedpakLoading;
   const _apiSrc = state.speedpakRates ? 'API' : '';
   const _subSuffix = _apiSrc ? '' : (_loading ? '（取得中...）' : '（API未接続）');
-  const _dutyType = cc.code === 'US' ? 'DDP' : 'DDU';
+  const _dutyType = isDDP ? 'DDP' : 'DDU';
+
+  // 関税情報の取得
+  const usDutyInfo = getUsDuty(cc, selling, rate, isDDP);
+  const usDutyAmount = usDutyInfo.amount;
+
+  // --- Zonos手数料計算（アメリカ宛のみ自動加算） ---
+  let zonosFeeJpy = 0;
+  if (isDDP && cc.code === 'US' && usDutyAmount > 0) {
+      const dutyUsd = usDutyAmount / rate;
+      const zonosUsd = 2 + (dutyUsd * 0.10);
+      zonosFeeJpy = Math.round(zonosUsd * rate);
+  }
 
   // --- SpeedPAK FedEx FICP ---
   {
@@ -275,16 +359,26 @@ export function calculate() {
       const baseRate = Rates.lookupRate(ficpTable, billableStandardG);
       if (baseRate > 0) {
         const fuel = Math.round(baseRate * fuelSurchargeRate);
-        const duty = spDuty();
+        let duty = 0;
+        let dutyEstimate = false;
+        if (isDDP) {
+           duty = spDuty();
+           if (duty === 0 && cc.code === 'US' && selling > 0 && rate > 0) {
+              duty = Math.round(selling * 0.10 * rate);
+              dutyEstimate = true;
+           }
+        }
         c = baseRate + fuel + duty;
         details = [
           {charges:'運送料金', chargesEn:'Shipping Rate', freight:baseRate},
           {charges:'燃料割増金', chargesEn:'Fuel Surcharge', freight:fuel},
         ];
-        const dutyItems = spDutyDetails();
-        if (dutyItems.length > 0) dutyItems.forEach(d => details.push(d));
-        else if (duty > 0) details.push({charges:'推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
-        subNote = '（概算）';
+        if (duty > 0) {
+          const dutyItems = spDutyDetails();
+          if (dutyItems.length > 0) dutyItems.forEach(d => details.push(d));
+          else details.push({charges: dutyEstimate ? '推定関税（税率10%概算）' : '推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
+        }
+        subNote = isDDP ? '（概算/一部10%関税想定）' : '（関税なし）';
       }
     }
     const canSend = cs && c !== null && c > 0;
@@ -298,7 +392,11 @@ export function calculate() {
     const csS = sorted[0] <= 33.5 && sorted[1] <= 23.5 && sorted[2] <= 3;
     const csVal = selling <= 0 || selling <= 500;
     const cs = csW && csS && csVal;
-    const c = cs ? spCost('ip_envelope') : null;
+    let c = cs ? spCost('ip_envelope') : null;
+    if (cs && c > 0 && !isDDP) {
+        const d = spDuty();
+        if (d > 0) c -= d;
+    }
     const canSend = cs && c !== null && c > 0;
     const r2 = [];
     if (!csW) r2.push('500g超過');
@@ -310,7 +408,8 @@ export function calculate() {
   // --- SpeedPAK FedEx IP Pak ---
   {
     const cs = weightG <= 2500;
-    const c = cs ? spCost('ip_pak') : null;
+    let c = cs ? spCost('ip_pak') : null;
+    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
     const canSend = cs && c !== null && c > 0;
     addMethod('fedex-ip',{name:'FedEx IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/実重量/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('ip_pak'):null,reason:!cs?'2.5kg超過':(c===null?'送料取得中':''),loading:_loading});
   }
@@ -321,7 +420,8 @@ export function calculate() {
     const csL = fxLength <= 274;
     const csG = fxLpG <= 330;
     const cs = csW && csL && csG;
-    const c = cs ? spCost('ip') : null;
+    let c = cs ? spCost('ip') : null;
+    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
     const canSend = cs && c !== null && c > 0;
     const r2 = [];
     if (!csW) r2.push('68kg超過');
@@ -333,7 +433,8 @@ export function calculate() {
   // --- SpeedPAK DHL Express Envelope ---
   {
     const cs = weightG <= 300;
-    const c = cs ? spCost('dhl_envelope') : null;
+    let c = cs ? spCost('dhl_envelope') : null;
+    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
     const canSend = cs && c !== null && c > 0;
     addMethod('dhl',{name:'DHL Express Envelope',sub:'2-4日/'+_dutyType+'/最大300g/実重量/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('dhl_envelope'):null,reason:!cs?'300g超過':(c===null?'送料取得中':''),loading:_loading});
   }
@@ -342,7 +443,8 @@ export function calculate() {
   {
     const maxW = cc.dhlZone === 10 ? 70000 : 30000;
     const cs = billableStandardG <= maxW;
-    const c = cs ? spCost('dhl') : null;
+    let c = cs ? spCost('dhl') : null;
+    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
     const canSend = cs && c !== null && c > 0;
     addMethod('dhl',{name:'DHL Express',sub:'2-4日/'+_dutyType+'/最大'+(maxW/1000)+'kg/体積÷5,000/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('dhl'):null,reason:!cs?(maxW/1000)+'kg超過':(c===null?'送料取得中':''),loading:_loading});
   }
@@ -354,7 +456,8 @@ export function calculate() {
     const csW = billableEcoKg <= maxKg && weightKg <= realMaxKg;
     const csD = cc.ecoSizeCheck ? cc.ecoSizeCheck(L, W, H, billableEcoKg*1000) : true;
     const cs = csW && csD;
-    const c = cs ? spCost('economy') : null;
+    let c = cs ? spCost('economy') : null;
+    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
     const canSend = cs && c !== null && c > 0;
     const r2 = [];
     if (!csW) r2.push(maxKg + 'kg超過');
@@ -378,6 +481,10 @@ export function calculate() {
     const zoneName = jpZone === 1 ? '第1地帯' : jpZone === 2 ? '第2地帯' : jpZone === 3 ? '第3地帯' : '第4地帯';
     const eplTable = Rates.getEpacketLightTable(jpZone);
     const emsTable = Rates.getEmsTable(jpZone);
+    
+    // Zonos表示用ラベル
+    const zonosDdpLabel = (isDDP && cc.code === 'US') ? ' (Zonos DDP)' : '';
+    
     if (eplTable) {
       const dims = [L, W, H].sort((a,b) => b-a);
       const eplTooSmall = dims[0] < 14.8 || dims[1] < 10.5;
@@ -391,7 +498,9 @@ export function calculate() {
       if (eplTooSmall) r2.push('サイズ小さい（最小14.8×10.5cm）');
       if (eplTooLarge) r2.push('サイズ超過（最大60cm/3辺合計90cm）');
       if (!eplWeightOk) r2.push('2kg超過');
-      addMethod('jppost',{name:'eパケットライト',sub:zoneName+'/追跡あり/最大2kg/実重量/⚠️ Economy用Shipping Policy要作成',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:r2.join(', ')});
+      const shipOnly = cs&&c>0 ? c : -1; 
+      const totalCost = shipOnly > 0 ? shipOnly + usDutyAmount + zonosFeeJpy : -1;
+      addMethod('jppost',{name:'eパケットライト',sub:zoneName+'/追跡あり/最大2kg/実重量'+zonosDdpLabel,cost:totalCost,canSend:cs&&c>0,reason:r2.join(', '),feeDetails:shipOnly>0?buildDutyFeeDetails('配送料',shipOnly,usDutyInfo, zonosFeeJpy):null,_dutyLoading:usDutyInfo.loading});
     }
     {
       const emsDims = [L, W, H].sort((a,b) => b-a);
@@ -404,7 +513,9 @@ export function calculate() {
       if (!jpOk) r2.push('差出不可（△）');
       if (emsTooLarge) r2.push('サイズ超過（最大150cm/3辺合計300cm）');
       if (!emsWeightOk) r2.push('30kg超過');
-      addMethod('jppost',{name:'EMS',sub:zoneName+'/最速/最大30kg/実重量',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:r2.join(', ')});
+      const shipOnly = cs&&c>0 ? c : -1; 
+      const totalCost = shipOnly > 0 ? shipOnly + usDutyAmount + zonosFeeJpy : -1;
+      addMethod('jppost',{name:'EMS',sub:zoneName+'/最速/最大30kg/実重量'+zonosDdpLabel,cost:totalCost,canSend:cs&&c>0,reason:r2.join(', '),feeDetails:shipOnly>0?buildDutyFeeDetails('配送料',shipOnly,usDutyInfo, zonosFeeJpy):null,_dutyLoading:usDutyInfo.loading});
     }
   }
 
@@ -424,7 +535,9 @@ export function calculate() {
         if (!csL) r2.push('最長辺274cm超過');
         if (!csG) r2.push('長さ+周囲330cm超過');
         if (cs && c <= 0) r2.push('重量超過');
-        addMethod('elogi-ficp',{name:'eLogi FICP',sub:'2-5日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/サーチャージ込',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:r2.join(', ')});
+        const shipOnly = cs&&c>0 ? c : -1; 
+        const totalCost = shipOnly > 0 ? shipOnly + usDutyAmount : -1;
+        addMethod('elogi-ficp',{name:'eLogi FICP',sub:'2-5日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/サーチャージ込',cost:totalCost,canSend:cs&&c>0,reason:r2.join(', '),feeDetails:shipOnly>0?buildDutyFeeDetails('配送料（サーチャージ込）',shipOnly,usDutyInfo):null,_dutyLoading:usDutyInfo.loading});
       }
       {
         const sorted = [L, W, H].sort((a,b) => b-a);
@@ -438,7 +551,9 @@ export function calculate() {
         if (!csW) r2.push('500g超過');
         if (!csS) r2.push('サイズ超過');
         if (!csVal) r2.push('申告価額$500超過');
-        addMethod('elogi-ip',{name:'eLogi IP Envelope',sub:'1-3日/'+_dutyType+'/最大500g/$500以下/サーチャージ込',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:r2.join(', ')});
+        const shipOnly = cs&&c>0 ? c : -1; 
+        const totalCost = shipOnly > 0 ? shipOnly + usDutyAmount : -1;
+        addMethod('elogi-ip',{name:'eLogi IP Envelope',sub:'1-3日/'+_dutyType+'/最大500g/$500以下/サーチャージ込',cost:totalCost,canSend:cs&&c>0,reason:r2.join(', '),feeDetails:shipOnly>0?buildDutyFeeDetails('配送料（サーチャージ込）',shipOnly,usDutyInfo):null,_dutyLoading:usDutyInfo.loading});
       }
       {
         const pakTable = Rates.getElogiIpPakTable(eZ);
@@ -459,7 +574,9 @@ export function calculate() {
         if (csW && !csV) pakR.push('寸法重量2.5kg超過');
         if (!csVal) pakR.push('申告価額$500超過');
         const pakSub = vol > 15400 ? '体積÷5,000' : '実重量';
-        addMethod('elogi-ip',{name:'eLogi IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/'+pakSub+'/44.45×52.71cm/サーチャージ込',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:pakR.join(', ')});
+        const shipOnly = cs&&c>0 ? c : -1; 
+        const totalCost = shipOnly > 0 ? shipOnly + usDutyAmount : -1;
+        addMethod('elogi-ip',{name:'eLogi IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/'+pakSub+'/44.45×52.71cm/サーチャージ込',cost:totalCost,canSend:cs&&c>0,reason:pakR.join(', '),feeDetails:shipOnly>0?buildDutyFeeDetails('配送料（サーチャージ込）',shipOnly,usDutyInfo):null,_dutyLoading:usDutyInfo.loading});
       }
       {
         const pkgD = Rates.getElogiIpPkgData(eZ);
@@ -474,7 +591,9 @@ export function calculate() {
           if (!csL) r2.push('最長辺274cm超過');
           if (!csG) r2.push('長さ+周囲330cm超過');
           if (cs && c <= 0) r2.push('重量超過');
-          addMethod('elogi-ip',{name:'eLogi IP Package',sub:'1-3日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/サーチャージ込',cost:cs&&c>0?c:-1,canSend:cs&&c>0,reason:r2.join(', ')});
+          const shipOnly = cs&&c>0 ? c : -1; 
+          const totalCost = shipOnly > 0 ? shipOnly + usDutyAmount : -1;
+          addMethod('elogi-ip',{name:'eLogi IP Package',sub:'1-3日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/サーチャージ込',cost:totalCost,canSend:cs&&c>0,reason:r2.join(', '),feeDetails:shipOnly>0?buildDutyFeeDetails('配送料（サーチャージ込）',shipOnly,usDutyInfo):null,_dutyLoading:usDutyInfo.loading});
         }
       }
     }
@@ -486,11 +605,12 @@ export function calculate() {
     if (upsD) {
       let c = Rates.elogiLookup(upsD[0], upsD[1], billableStandardG);
       const cs = c > 0;
-      addMethod('elogi-ups',{name:'UPS Express Saver',sub:'2-5日/'+_dutyType+'/体積÷5,000/サーチャージ込',cost:cs?c:-1,canSend:cs,reason:!cs?'重量超過':''});
+      const shipOnly = cs ? c : -1; 
+      const totalCost = shipOnly > 0 ? shipOnly + usDutyAmount : -1;
+      addMethod('elogi-ups',{name:'UPS Express Saver',sub:'2-5日/'+_dutyType+'/体積÷5,000/サーチャージ込',cost:totalCost,canSend:cs,reason:!cs?'重量超過':'',feeDetails:shipOnly>0?buildDutyFeeDetails('配送料（サーチャージ込）',shipOnly,usDutyInfo):null,_dutyLoading:usDutyInfo.loading});
     }
   }
 
-// 利益とBest判定の計算
   let allMethods = [];
   groups.forEach(g => {
     g.methods.forEach(m => {
@@ -505,7 +625,7 @@ export function calculate() {
           purchasePrice = parseFloat(purchaseInput.value.replace(/,/g, '')) || 0;
         }
         
-        // ★利益が 1000円 以上、かつ、仕入値の 10% 以上であること（復活）
+        // 利益ルール：1000円以上 ＆ 仕入値の10%以上
         const targetProfit = purchasePrice * 0.1;
         m.isOk = m.canSend && m.profit >= 1000 && m.profit >= targetProfit;
       } else {
@@ -515,22 +635,27 @@ export function calculate() {
     });
   });
 
-  const fedexDhlMethods = allMethods.filter(m => m._groupId === 'fedex' || m._groupId === 'fedex-ip' || m._groupId === 'dhl');
-  let bestFD = null, bestFDProfit = -Infinity;
-  fedexDhlMethods.forEach(m => {
-    if (m.canSend && m.profit !== null && m.profit > bestFDProfit) { bestFDProfit = m.profit; bestFD = m; }
+  // 最安値判定（FedEx、DHL、日本郵便）
+  const validMethodsForBest = allMethods.filter(m => m._groupId === 'fedex' || m._groupId === 'fedex-ip' || m._groupId === 'dhl' || m._groupId === 'jppost');
+  let bestMethod = null, bestProfit = -Infinity;
+  validMethodsForBest.forEach(m => {
+    if (m.canSend && m.profit !== null && m.profit > bestProfit) { 
+        bestProfit = m.profit; 
+        bestMethod = m; 
+    }
   });
 
-  let bestProfit = -Infinity, bestRefund = -Infinity;
+  let maxProfitAny = -Infinity, maxRefundAny = -Infinity;
   allMethods.forEach(m => {
     if (!m.canSend) return;
     if (m._groupId.startsWith('elogi')) return;
-    if (m.profit !== null && m.profit > bestProfit) bestProfit = m.profit;
-    if (m.profitWithRefund !== null && m.profitWithRefund > bestRefund) bestRefund = m.profitWithRefund;
+    if (m.profit !== null && m.profit > maxProfitAny) maxProfitAny = m.profit;
+    if (m.profitWithRefund !== null && m.profitWithRefund > maxRefundAny) maxRefundAny = m.profitWithRefund;
   });
 
   function setProfitCard(cellId, value, elId) {
     const el = document.getElementById(elId);
+    if (!el) return;
     if (value === null || value === undefined) {
       el.textContent = '-';
       el.className = 'p-val';
@@ -549,26 +674,30 @@ export function calculate() {
   const bestRateSubEl = document.getElementById('bestRateSub');
   const summaryBar = document.querySelector('.profit-summary');
 
-  if (bestFD) {
-    allMethods.forEach(m => { m.isBest = (m === bestFD); });
-    setProfitCard('summaryProfit', bestFD.profit, 'bestProfitYen');
-    setProfitCard('summaryRefund', bestFD.profitWithRefund, 'bestProfitRefundYen');
-    summaryBar.classList.toggle('negative', !bestFD.isOk);
-    document.getElementById('bestProfitRate').textContent = bestFD.profitRate.toFixed(1) + '%';
-    bestNameEl.textContent = bestFD.name;
-    bestRateSubEl.textContent = '仕入額 ¥' + fmt(purchase) + ' に対して';
+  if (bestMethod) {
+    allMethods.forEach(m => { m.isBest = (m === bestMethod); });
+    setProfitCard('summaryProfit', bestMethod.profit, 'bestProfitYen');
+    setProfitCard('summaryRefund', bestMethod.profitWithRefund, 'bestProfitRefundYen');
+    if(summaryBar) summaryBar.classList.toggle('negative', !bestMethod.isOk);
+    const rateEl = document.getElementById('bestProfitRate');
+    if(rateEl) rateEl.textContent = bestMethod.profitRate.toFixed(1) + '%';
+    if(bestNameEl) bestNameEl.textContent = bestMethod.name;
+    if(bestRateSubEl) bestRateSubEl.textContent = '仕入額 ¥' + fmt(purchase) + ' に対して';
   } else {
-    let bestMethod = null;
-    allMethods.forEach(m => { m.isBest = m.profit !== null && m.profit === bestProfit && m.isOk; if (m.isBest && !bestMethod) bestMethod = m; });
-    setProfitCard('summaryProfit', bestProfit > -Infinity ? bestProfit : null, 'bestProfitYen');
-    setProfitCard('summaryRefund', bestRefund > -Infinity ? bestRefund : null, 'bestProfitRefundYen');
-    summaryBar.classList.toggle('negative', !bestMethod || !bestMethod.isOk);
-    document.getElementById('bestProfitRate').textContent = bestMethod ? bestMethod.profitRate.toFixed(1) + '%' : '-';
-    bestNameEl.textContent = bestMethod ? bestMethod.name : '';
-    bestRateSubEl.textContent = purchase > 0 ? '仕入額 ¥' + fmt(purchase) + ' に対して' : '';
+    let fallbackBest = null;
+    allMethods.forEach(m => { 
+        m.isBest = m.profit !== null && m.profit === maxProfitAny && m.isOk; 
+        if (m.isBest && !fallbackBest) fallbackBest = m; 
+    });
+    setProfitCard('summaryProfit', maxProfitAny > -Infinity ? maxProfitAny : null, 'bestProfitYen');
+    setProfitCard('summaryRefund', maxRefundAny > -Infinity ? maxRefundAny : null, 'bestProfitRefundYen');
+    if(summaryBar) summaryBar.classList.toggle('negative', !fallbackBest || !fallbackBest.isOk);
+    const rateEl = document.getElementById('bestProfitRate');
+    if(rateEl) rateEl.textContent = fallbackBest ? fallbackBest.profitRate.toFixed(1) + '%' : '-';
+    if(bestNameEl) bestNameEl.textContent = fallbackBest ? fallbackBest.name : '';
+    if(bestRateSubEl) bestRateSubEl.textContent = purchase > 0 ? '仕入額 ¥' + fmt(purchase) + ' に対して' : '';
   }
 
-  // 利益順にソートして描画
   groups.forEach(g => {
     g.methods.sort((a,b) => {
       const av = a.profit, bv = b.profit;
@@ -580,6 +709,8 @@ export function calculate() {
   });
 
   const container = document.getElementById('resultsContainer');
+  if(!container) return;
+  // コンテナの内部のみクリア
   container.innerHTML = '';
 
   groups.forEach(g => {
@@ -629,7 +760,7 @@ export function calculate() {
       row.className = cls;
 
       const tagItems = [];
-      if (m.isBest) tagItems.push('<span class="method-tag tag-recommend">推奨</span>');
+      if (m.isBest) tagItems.push('<span class="method-tag tag-recommend">最安・推奨</span>');
       if (m.isOk) tagItems.push('<span class="method-tag tag-ok">利益OK</span>');
       if (m.sub && m.sub.includes('DDP')) tagItems.push('<span class="method-tag tag-ddp">DDP</span>');
       if (g.tag === '速達') tagItems.push('<span class="method-tag tag-fast">速達</span>');
@@ -652,11 +783,13 @@ export function calculate() {
           const rows = m.feeDetails.filter(d => d.freight > 0).map(d => `<div class="fp-row"><span class="fp-name">${d.charges}</span><span class="fp-val">¥${fmt(d.freight)}</span></div>`).join('');
           popupHtml = `<div class="fee-popup u-hidden"><div class="fp-header">送料内訳</div>${rows}<div class="fp-row fp-total"><span class="fp-name">合計</span><span class="fp-val">¥${fmt(m.cost)}</span></div></div>`;
         }
+        const dutyLoadingNote = m._dutyLoading ? '<div style="font-size:.65rem;color:var(--text3);text-align:right;margin-top:1px">関税取得中...</div>' : '';
+
         right = `<div class="mr-right">
           <span class="lbl">送料 ${detailBtn}</span><span class="val val-cost">¥${fmt(m.cost)}</span>
           <span class="lbl">利益</span><span class="${profitCls}">${profitTxt}</span>
           <span class="lbl">還付込</span><span class="${refundCls}">${refundTxt}</span>
-        </div>${popupHtml}`;
+        </div>${dutyLoadingNote}${popupHtml}`;
       } else {
         right = `<div class="mr-na">${m.reason || '発送不可'}</div>`;
       }
