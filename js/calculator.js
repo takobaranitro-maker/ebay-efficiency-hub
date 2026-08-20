@@ -216,7 +216,8 @@ function getUsDuty(cc, selling, rate, isDdpEnabled) {
   if (apiDuty > 0) return { amount: apiDuty, isEstimate: false, loading: false };
   
   if (selling > 0 && rate > 0) {
-    return { amount: Math.round(selling * 0.10 * rate), isEstimate: true, loading: false };
+    // 【修正】0.10 を 0.30 に変更
+    return { amount: Math.round(selling * 0.30 * rate), isEstimate: true, loading: false };
   }
   return { amount: 0, isEstimate: false, loading: false };
 }
@@ -228,7 +229,8 @@ function buildDutyFeeDetails(shippingLabel, shippingCost, dutyInfo, zonosFeeJpy 
     if (!dutyInfo.isEstimate && apiDetails.length > 0) {
       apiDetails.forEach(d => details.push(d));
     } else {
-      const label = dutyInfo.isEstimate ? '推定関税（税率10%概算）' : '推定関税及び税金料金';
+      // 【修正】テキストの 10% を 30% に変更
+      const label = dutyInfo.isEstimate ? '推定関税（税率30%概算）' : '推定関税及び税金料金';
       details.push({charges: label, chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
     }
   }
@@ -364,7 +366,8 @@ export function calculate() {
         if (isDDP) {
            duty = spDuty();
            if (duty === 0 && cc.code === 'US' && selling > 0 && rate > 0) {
-              duty = Math.round(selling * 0.10 * rate);
+              // 【修正】0.10 を 0.30 に変更
+              duty = Math.round(selling * 0.30 * rate);
               dutyEstimate = true;
            }
         }
@@ -376,9 +379,11 @@ export function calculate() {
         if (duty > 0) {
           const dutyItems = spDutyDetails();
           if (dutyItems.length > 0) dutyItems.forEach(d => details.push(d));
-          else details.push({charges: dutyEstimate ? '推定関税（税率10%概算）' : '推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
+          // 【修正】テキストを 30%概算 に変更
+          else details.push({charges: dutyEstimate ? '推定関税（税率30%概算）' : '推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
         }
-        subNote = isDDP ? '（概算/一部10%関税想定）' : '（関税なし）';
+        // 【修正】テキストを 30%関税想定 に変更
+        subNote = isDDP ? '（概算/30%関税想定）' : '（関税なし）';
       }
     }
     const canSend = cs && c !== null && c > 0;
