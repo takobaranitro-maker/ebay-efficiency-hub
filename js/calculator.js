@@ -212,11 +212,8 @@ function getUsDuty(cc, selling, rate, isDdpEnabled) {
   if (state.speedpakLoading || (!state.speedpakRates && selling > 0)) {
     return { amount: 0, isEstimate: false, loading: true };
   }
-  const apiDuty = spDuty();
-  if (apiDuty > 0) return { amount: apiDuty, isEstimate: false, loading: false };
-  
+  // 【修正】APIの関税額(spDuty)を完全に無視し、米国向けは強制的に30%を適用する
   if (selling > 0 && rate > 0) {
-    // 【修正】0.10 を 0.30 に変更
     return { amount: Math.round(selling * 0.30 * rate), isEstimate: true, loading: false };
   }
   return { amount: 0, isEstimate: false, loading: false };
@@ -225,13 +222,16 @@ function getUsDuty(cc, selling, rate, isDdpEnabled) {
 function buildDutyFeeDetails(shippingLabel, shippingCost, dutyInfo, zonosFeeJpy = 0) {
   const details = [{charges: shippingLabel, chargesEn: 'Shipping Rate', freight: shippingCost}];
   if (dutyInfo.amount > 0) {
-    const apiDetails = spDutyDetails();
-    if (!dutyInfo.isEstimate && apiDetails.length > 0) {
-      apiDetails.forEach(d => details.push(d));
+    // 【修正】米国DDP（isEstimate: true）の場合は強制的に30%概算ラベルにする
+    if (dutyInfo.isEstimate) {
+      details.push({charges: '推定関税（税率30%概算）', chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
     } else {
-      // 【修正】テキストの 10% を 30% に変更
-      const label = dutyInfo.isEstimate ? '推定関税（税率30%概算）' : '推定関税及び税金料金';
-      details.push({charges: label, chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
+      const apiDetails = spDutyDetails();
+      if (apiDetails.length > 0) {
+        apiDetails.forEach(d => details.push(d));
+      } else {
+        details.push({charges: '推定関税及び税金料金', chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
+      }
     }
   }
   if (zonosFeeJpy > 0) {
@@ -244,7 +244,6 @@ export function calculate() {
   updatePricingDisplay();
   updateFeeDescription();
   
-  // 国がアメリカなら自動でDDPオン、それ以外ならオフ
   const isDDP = (state.currentCountry === 'us');
 
   const purchase = getVal('purchasePrice');
@@ -339,7 +338,7 @@ export function calculate() {
   const _subSuffix = _apiSrc ? '' : (_loading ? '（取得中...）' : '（API未接続）');
   const _dutyType = isDDP ? 'DDP' : 'DDU';
 
-  // 関税情報の取得
+  // 関税情報の取得（ここで強制30%が取得される）
   const usDutyInfo = getUsDuty(cc, selling, rate, isDDP);
   const usDutyAmount = usDutyInfo.amount;
 
@@ -351,12 +350,49 @@ export function calculate() {
       zonosFeeJpy = Math.round(zonosUsd * rate);
   }
 
+  // --- 【重要】APIの関税額を強制削除し、30%を注入するヘルパー関数 ---
+  function getAdjustedApiMethod(methodKey, cs) {
+    if (!cs) return { c: null, details: null };
+    let c = spCost(methodKey);
+    if (c === null || c <= 0) return { c, details: null };
+    
+    let details = spFeeDetails(methodKey);
+    const apiDutyVal = spDuty();
+    
+    if (!isDDP) {
+        if (apiDutyVal > 0) c -= apiDutyVal;
+        if (details) {
+            const dutyNames = spDutyDetails().map(d => d.charges);
+            details = details.filter(d => !dutyNames.includes(d.charges));
+        }
+    } else if (isDDP && cc.code === 'US' && selling > 0) {
+        // APIから取得した関税額（10,923円など）を総額からマイナスする
+        if (apiDutyVal > 0) {
+            c -= apiDutyVal;
+        }
+        // 絶対ルールの30%関税を注入
+        const customDuty = Math.round(selling * 0.30 * rate);
+        c += customDuty;
+        
+        if (details) {
+            // APIの関税明細（推定関税及び税金料金、推定関税処理手数料など）を削除
+            const dutyNames = spDutyDetails().map(d => d.charges);
+            details = details.filter(d => !dutyNames.includes(d.charges));
+            // 代わりに30%概算の明細を追加
+            details.push({charges: '推定関税（税率30%概算）', chargesEn: 'Estimated Duty&Tax', freight: customDuty});
+        }
+    }
+    return { c, details };
+  }
+
   // --- SpeedPAK FedEx FICP ---
   {
     const cs = billableStandardG <= 68000;
-    let c = cs ? spCost('ficp') : null;
-    let details = c && c > 0 ? spFeeDetails('ficp') : null;
+    // APIの値を強制上書き
+    let { c, details } = getAdjustedApiMethod('ficp', cs);
     let subNote = _subSuffix;
+    
+    // APIがダウンしている時のフォールバック計算
     if (cs && (c === null || c === 0)) {
       const baseRate = Rates.lookupRate(ficpTable, billableStandardG);
       if (baseRate > 0) {
@@ -364,11 +400,11 @@ export function calculate() {
         let duty = 0;
         let dutyEstimate = false;
         if (isDDP) {
-           duty = spDuty();
-           if (duty === 0 && cc.code === 'US' && selling > 0 && rate > 0) {
-              // 【修正】0.10 を 0.30 に変更
+           if (cc.code === 'US' && selling > 0 && rate > 0) {
               duty = Math.round(selling * 0.30 * rate);
               dutyEstimate = true;
+           } else {
+              duty = spDuty();
            }
         }
         c = baseRate + fuel + duty;
@@ -377,13 +413,15 @@ export function calculate() {
           {charges:'燃料割増金', chargesEn:'Fuel Surcharge', freight:fuel},
         ];
         if (duty > 0) {
-          const dutyItems = spDutyDetails();
-          if (dutyItems.length > 0) dutyItems.forEach(d => details.push(d));
-          // 【修正】テキストを 30%概算 に変更
-          else details.push({charges: dutyEstimate ? '推定関税（税率30%概算）' : '推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
+          if (dutyEstimate) {
+            details.push({charges: '推定関税（税率30%概算）', chargesEn:'Estimated Duty&Tax', freight:duty});
+          } else {
+            const dutyItems = spDutyDetails();
+            if (dutyItems.length > 0) dutyItems.forEach(d => details.push(d));
+            else details.push({charges: '推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
+          }
         }
-        // 【修正】テキストを 30%関税想定 に変更
-        subNote = isDDP ? '（概算/30%関税想定）' : '（関税なし）';
+        subNote = isDDP ? (dutyEstimate ? '（概算/30%関税想定）' : '（関税あり）') : '（関税なし）';
       }
     }
     const canSend = cs && c !== null && c > 0;
@@ -397,26 +435,21 @@ export function calculate() {
     const csS = sorted[0] <= 33.5 && sorted[1] <= 23.5 && sorted[2] <= 3;
     const csVal = selling <= 0 || selling <= 500;
     const cs = csW && csS && csVal;
-    let c = cs ? spCost('ip_envelope') : null;
-    if (cs && c > 0 && !isDDP) {
-        const d = spDuty();
-        if (d > 0) c -= d;
-    }
+    let { c, details } = getAdjustedApiMethod('ip_envelope', cs);
     const canSend = cs && c !== null && c > 0;
     const r2 = [];
     if (!csW) r2.push('500g超過');
     if (!csS) r2.push('サイズ超過(23.5x33.5x3cm)');
     if (!csVal) r2.push('申告価額$500超過');
-    addMethod('fedex-ip',{name:'FedEx IP Envelope',sub:'1-3日/'+_dutyType+'/最大500g/内寸23.5×33.5×3cm/$500以下/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('ip_envelope'):null,reason:r2.length?r2.join(', '):(c===null?'送料取得中':''),loading:_loading});
+    addMethod('fedex-ip',{name:'FedEx IP Envelope',sub:'1-3日/'+_dutyType+'/最大500g/内寸23.5×33.5×3cm/$500以下/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:details,reason:r2.length?r2.join(', '):(c===null?'送料取得中':''),loading:_loading});
   }
 
   // --- SpeedPAK FedEx IP Pak ---
   {
     const cs = weightG <= 2500;
-    let c = cs ? spCost('ip_pak') : null;
-    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
+    let { c, details } = getAdjustedApiMethod('ip_pak', cs);
     const canSend = cs && c !== null && c > 0;
-    addMethod('fedex-ip',{name:'FedEx IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/実重量/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('ip_pak'):null,reason:!cs?'2.5kg超過':(c===null?'送料取得中':''),loading:_loading});
+    addMethod('fedex-ip',{name:'FedEx IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/実重量/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:details,reason:!cs?'2.5kg超過':(c===null?'送料取得中':''),loading:_loading});
   }
 
   // --- SpeedPAK FedEx IP Package ---
@@ -425,33 +458,30 @@ export function calculate() {
     const csL = fxLength <= 274;
     const csG = fxLpG <= 330;
     const cs = csW && csL && csG;
-    let c = cs ? spCost('ip') : null;
-    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
+    let { c, details } = getAdjustedApiMethod('ip', cs);
     const canSend = cs && c !== null && c > 0;
     const r2 = [];
     if (!csW) r2.push('68kg超過');
     if (!csL) r2.push('最長辺274cm超過');
     if (!csG) r2.push('長さ+周囲330cm超過');
-    addMethod('fedex-ip',{name:'FedEx IP Package',sub:'1-3日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('ip'):null,reason:r2.length?r2.join(', '):(c===null?'送料取得中':''),loading:_loading});
+    addMethod('fedex-ip',{name:'FedEx IP Package',sub:'1-3日/'+_dutyType+'/最大68kg/274cm/周囲330cm/体積÷5,000/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:details,reason:r2.length?r2.join(', '):(c===null?'送料取得中':''),loading:_loading});
   }
 
   // --- SpeedPAK DHL Express Envelope ---
   {
     const cs = weightG <= 300;
-    let c = cs ? spCost('dhl_envelope') : null;
-    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
+    let { c, details } = getAdjustedApiMethod('dhl_envelope', cs);
     const canSend = cs && c !== null && c > 0;
-    addMethod('dhl',{name:'DHL Express Envelope',sub:'2-4日/'+_dutyType+'/最大300g/実重量/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('dhl_envelope'):null,reason:!cs?'300g超過':(c===null?'送料取得中':''),loading:_loading});
+    addMethod('dhl',{name:'DHL Express Envelope',sub:'2-4日/'+_dutyType+'/最大300g/実重量/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:details,reason:!cs?'300g超過':(c===null?'送料取得中':''),loading:_loading});
   }
 
   // --- SpeedPAK DHL Express Worldwide ---
   {
     const maxW = cc.dhlZone === 10 ? 70000 : 30000;
     const cs = billableStandardG <= maxW;
-    let c = cs ? spCost('dhl') : null;
-    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
+    let { c, details } = getAdjustedApiMethod('dhl', cs);
     const canSend = cs && c !== null && c > 0;
-    addMethod('dhl',{name:'DHL Express',sub:'2-4日/'+_dutyType+'/最大'+(maxW/1000)+'kg/体積÷5,000/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('dhl'):null,reason:!cs?(maxW/1000)+'kg超過':(c===null?'送料取得中':''),loading:_loading});
+    addMethod('dhl',{name:'DHL Express',sub:'2-4日/'+_dutyType+'/最大'+(maxW/1000)+'kg/体積÷5,000/燃油込' + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:details,reason:!cs?(maxW/1000)+'kg超過':(c===null?'送料取得中':''),loading:_loading});
   }
 
   // --- SpeedPAK Economy ---
@@ -461,8 +491,7 @@ export function calculate() {
     const csW = billableEcoKg <= maxKg && weightKg <= realMaxKg;
     const csD = cc.ecoSizeCheck ? cc.ecoSizeCheck(L, W, H, billableEcoKg*1000) : true;
     const cs = csW && csD;
-    let c = cs ? spCost('economy') : null;
-    if (cs && c > 0 && !isDDP) { const d = spDuty(); if (d > 0) c -= d; }
+    let { c, details } = getAdjustedApiMethod('economy', cs);
     const canSend = cs && c !== null && c > 0;
     const r2 = [];
     if (!csW) r2.push(maxKg + 'kg超過');
@@ -474,7 +503,7 @@ export function calculate() {
       if (_loading) ecoReason = '送料取得中';
       else ecoReason = 'Economy対象外';
     } else ecoReason = '';
-    addMethod('speedpak',{name:'Economy',sub:cc.ecoDays+'/'+cc.ecoMaxVal+'以下/体積÷8,000/'+_dutyType + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:canSend?spFeeDetails('economy'):null,reason:ecoReason,loading:_loading});
+    addMethod('speedpak',{name:'Economy',sub:cc.ecoDays+'/'+cc.ecoMaxVal+'以下/体積÷8,000/'+_dutyType + _subSuffix,cost:canSend?c:-1,canSend:canSend,feeDetails:details,reason:ecoReason,loading:_loading});
   } else {
     addMethod('speedpak',{name:'Economy',sub:'この国はEconomy非対応',cost:-1,canSend:false,reason:cc.name+' 非対応'});
   }
