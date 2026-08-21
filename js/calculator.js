@@ -19,19 +19,17 @@ export function getEffectiveSellingPrice() {
     const compShipping = getCompShippingUsd();
     const compTotal = selling + compShipping;
     if (compTotal <= 0) return 0;
-    const total = Math.round((compTotal - 0.01) * 100) / 100;
-    if (state.currentCountry !== 'us' && total <= 2499.99) {
-      return Math.round((total / 1.15) * 100) / 100;
-    }
-    return total;
+    // ベンチマークモード：必ず総額（本体＋送料）を返す
+    return Math.round((compTotal - 0.01) * 100) / 100;
   } else {
+    // 基準値モード
     if (selling <= 0) return 0;
     const base = Math.round((selling - 0.01) * 100) / 100;
     if (state.currentCountry === 'us') {
-      const usShippingPct = getVal('usShippingPct') / 100;
-      const usShipping = Math.round(selling * usShippingPct * 100) / 100;
-      return Math.round((base + usShipping) * 100) / 100;
+      // US向けは「本体 × 1.35」を総額として返す
+      return Math.round((base * 1.35) * 100) / 100;
     }
+    // US以外は一律送料無料（総額＝本体）
     return base;
   }
 }
@@ -42,24 +40,30 @@ function updatePricingDisplay() {
     const compShipping = getCompShippingUsd();
     const compTotal = selling + compShipping;
     const total = compTotal > 0 ? Math.round((compTotal - 0.01) * 100) / 100 : 0;
+    
     if (total > 0) {
-      if (total > 2499.99) {
-        document.getElementById('listPrice').textContent = '$' + fmtD(total);
-        document.getElementById('listShipping').textContent = '$0.00';
-      } else {
-        const itemPrice = Math.round((total / 1.15) * 100) / 100;
+      if (state.currentCountry === 'us') {
+        // A案：2500ドルの壁を撤廃し、US向けは全て「本体」と「送料(35%関税分)」に分割
+        const itemPrice = Math.round((total / 1.35) * 100) / 100;
         const usShipping = Math.round((total - itemPrice) * 100) / 100;
         document.getElementById('listPrice').textContent = '$' + fmtD(itemPrice);
         document.getElementById('listShipping').textContent = '$' + fmtD(usShipping);
+      } else {
+        // 非US向け：一律送料無料 (旧1.15撤廃)
+        document.getElementById('listPrice').textContent = '$' + fmtD(total);
+        document.getElementById('listShipping').textContent = '$0.00';
       }
     } else {
       document.getElementById('listPrice').textContent = '-';
       document.getElementById('listShipping').textContent = '-';
     }
   } else {
-    const usShippingPct = getVal('usShippingPct') / 100;
-    const usShippingRef = selling > 0 ? Math.round(selling * usShippingPct * 100) / 100 : 0;
-    document.getElementById('usShippingRef').textContent = usShippingRef > 0 ? '$' + fmtD(usShippingRef) : '-';
+    if (state.currentCountry === 'us') {
+      const usShippingRef = selling > 0 ? Math.round((selling - 0.01) * 0.35 * 100) / 100 : 0;
+      document.getElementById('usShippingRef').textContent = usShippingRef > 0 ? '$' + fmtD(usShippingRef) : '-';
+    } else {
+      document.getElementById('usShippingRef').textContent = '-';
+    }
   }
 }
 
@@ -212,9 +216,10 @@ function getUsDuty(cc, selling, rate, isDdpEnabled) {
   if (state.speedpakLoading || (!state.speedpakRates && selling > 0)) {
     return { amount: 0, isEstimate: false, loading: true };
   }
-  // 【修正】APIの関税額(spDuty)を完全に無視し、米国向けは強制的に30%を適用する
+  // 【最重要修正】販売総額(selling)を1.35で割り「本体価格」を算出し、そこに35%の関税を掛ける
   if (selling > 0 && rate > 0) {
-    return { amount: Math.round(selling * 0.30 * rate), isEstimate: true, loading: false };
+    const fobPrice = selling / 1.35;
+    return { amount: Math.round(fobPrice * 0.35 * rate), isEstimate: true, loading: false };
   }
   return { amount: 0, isEstimate: false, loading: false };
 }
@@ -222,9 +227,8 @@ function getUsDuty(cc, selling, rate, isDdpEnabled) {
 function buildDutyFeeDetails(shippingLabel, shippingCost, dutyInfo, zonosFeeJpy = 0) {
   const details = [{charges: shippingLabel, chargesEn: 'Shipping Rate', freight: shippingCost}];
   if (dutyInfo.amount > 0) {
-    // 【修正】米国DDP（isEstimate: true）の場合は強制的に30%概算ラベルにする
     if (dutyInfo.isEstimate) {
-      details.push({charges: '推定関税（税率30%概算）', chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
+      details.push({charges: '推定関税（税率35%概算）', chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
     } else {
       const apiDetails = spDutyDetails();
       if (apiDetails.length > 0) {
@@ -338,11 +342,11 @@ export function calculate() {
   const _subSuffix = _apiSrc ? '' : (_loading ? '（取得中...）' : '（API未接続）');
   const _dutyType = isDDP ? 'DDP' : 'DDU';
 
-  // 関税情報の取得（ここで強制30%が取得される）
+  // 関税情報の取得（強制35%が取得される）
   const usDutyInfo = getUsDuty(cc, selling, rate, isDDP);
   const usDutyAmount = usDutyInfo.amount;
 
-  // --- Zonos手数料計算（アメリカ宛のみ自動加算） ---
+  // --- Zonos手数料計算 ---
   let zonosFeeJpy = 0;
   if (isDDP && cc.code === 'US' && usDutyAmount > 0) {
       const dutyUsd = usDutyAmount / rate;
@@ -350,7 +354,7 @@ export function calculate() {
       zonosFeeJpy = Math.round(zonosUsd * rate);
   }
 
-  // --- 【重要】APIの関税額を強制削除し、30%を注入するヘルパー関数 ---
+  // --- API上書きロジック（本体価格から35%を算出） ---
   function getAdjustedApiMethod(methodKey, cs) {
     if (!cs) return { c: null, details: null };
     let c = spCost(methodKey);
@@ -366,20 +370,18 @@ export function calculate() {
             details = details.filter(d => !dutyNames.includes(d.charges));
         }
     } else if (isDDP && cc.code === 'US' && selling > 0) {
-        // APIから取得した関税額（10,923円など）を総額からマイナスする
         if (apiDutyVal > 0) {
             c -= apiDutyVal;
         }
-        // 絶対ルールの30%関税を注入
-        const customDuty = Math.round(selling * 0.30 * rate);
+        // 【修正】本体価格（FOB）を割り戻して35%関税を計算
+        const fobPrice = selling / 1.35;
+        const customDuty = Math.round(fobPrice * 0.35 * rate);
         c += customDuty;
         
         if (details) {
-            // APIの関税明細（推定関税及び税金料金、推定関税処理手数料など）を削除
             const dutyNames = spDutyDetails().map(d => d.charges);
             details = details.filter(d => !dutyNames.includes(d.charges));
-            // 代わりに30%概算の明細を追加
-            details.push({charges: '推定関税（税率30%概算）', chargesEn: 'Estimated Duty&Tax', freight: customDuty});
+            details.push({charges: '推定関税（税率35%概算）', chargesEn: 'Estimated Duty&Tax', freight: customDuty});
         }
     }
     return { c, details };
@@ -388,11 +390,9 @@ export function calculate() {
   // --- SpeedPAK FedEx FICP ---
   {
     const cs = billableStandardG <= 68000;
-    // APIの値を強制上書き
     let { c, details } = getAdjustedApiMethod('ficp', cs);
     let subNote = _subSuffix;
     
-    // APIがダウンしている時のフォールバック計算
     if (cs && (c === null || c === 0)) {
       const baseRate = Rates.lookupRate(ficpTable, billableStandardG);
       if (baseRate > 0) {
@@ -401,7 +401,8 @@ export function calculate() {
         let dutyEstimate = false;
         if (isDDP) {
            if (cc.code === 'US' && selling > 0 && rate > 0) {
-              duty = Math.round(selling * 0.30 * rate);
+              const fobPrice = selling / 1.35;
+              duty = Math.round(fobPrice * 0.35 * rate);
               dutyEstimate = true;
            } else {
               duty = spDuty();
@@ -414,14 +415,14 @@ export function calculate() {
         ];
         if (duty > 0) {
           if (dutyEstimate) {
-            details.push({charges: '推定関税（税率30%概算）', chargesEn:'Estimated Duty&Tax', freight:duty});
+            details.push({charges: '推定関税（税率35%概算）', chargesEn:'Estimated Duty&Tax', freight:duty});
           } else {
             const dutyItems = spDutyDetails();
             if (dutyItems.length > 0) dutyItems.forEach(d => details.push(d));
             else details.push({charges: '推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
           }
         }
-        subNote = isDDP ? (dutyEstimate ? '（概算/30%関税想定）' : '（関税あり）') : '（関税なし）';
+        subNote = isDDP ? (dutyEstimate ? '（概算/35%関税想定）' : '（関税あり）') : '（関税なし）';
       }
     }
     const canSend = cs && c !== null && c > 0;
@@ -516,7 +517,6 @@ export function calculate() {
     const eplTable = Rates.getEpacketLightTable(jpZone);
     const emsTable = Rates.getEmsTable(jpZone);
     
-    // Zonos表示用ラベル
     const zonosDdpLabel = (isDDP && cc.code === 'US') ? ' (Zonos DDP)' : '';
     
     if (eplTable) {
