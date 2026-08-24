@@ -24,11 +24,9 @@ export function getEffectiveSellingPrice() {
     if (selling <= 0) return 0;
     const base = Math.round((selling - 0.01) * 100) / 100;
     if (state.currentCountry === 'us') {
-      // アメリカ以外タブでUSの利益を見る場合、(Base + 追加送料)が購入者の支払総額となる
       const uiPctDec = getVal('usShippingPct') / 100;
       return Math.round((base * (1 + uiPctDec)) * 100) / 100;
     }
-    // US以外は一律送料無料としてBaseをそのまま返す
     return base;
   }
 }
@@ -42,7 +40,9 @@ function updatePricingDisplay() {
     
     if (total > 0) {
       if (state.currentCountry === 'us') {
-        const itemPrice = Math.round((total / 1.35) * 100) / 100;
+        // バイヤーに見せる本体価格は、入力された送料%（例:42%）で逆算
+        const uiPctDec = getVal('usShippingPct') / 100;
+        const itemPrice = Math.round((total / (1 + uiPctDec)) * 100) / 100;
         const usShipping = Math.round((total - itemPrice) * 100) / 100;
         document.getElementById('listPrice').textContent = '$' + fmtD(itemPrice);
         document.getElementById('listShipping').textContent = '$' + fmtD(usShipping);
@@ -55,7 +55,6 @@ function updatePricingDisplay() {
       document.getElementById('listShipping').textContent = '-';
     }
   } else {
-    // 【復活】アメリカ以外タブの時は、全世界向けベース価格から「US向け追加送料参考額」を算出して表示
     const uiPctDec = getVal('usShippingPct') / 100;
     const usShippingRef = selling > 0 ? Math.round((selling - 0.01) * uiPctDec * 100) / 100 : 0;
     const refEl = document.getElementById('usShippingRef');
@@ -213,14 +212,10 @@ function getUsDuty(cc, selling, rate, isDdpEnabled) {
     return { amount: 0, isEstimate: false, loading: true };
   }
   if (selling > 0 && rate > 0) {
-    if (state.currentPricingMode === 'us') {
-      const fobPrice = selling / 1.35;
-      return { amount: Math.round(fobPrice * 0.35 * rate), isEstimate: true, loading: false };
-    } else {
-      const uiPctDec = getVal('usShippingPct') / 100;
-      const fobPrice = selling / (1 + uiPctDec);
-      return { amount: Math.round(fobPrice * uiPctDec * rate), isEstimate: true, loading: false };
-    }
+    // 【修正】本体価格(fob)の算出は入力値(例:42%)を使い、実費(Duty)の掛目は【0.35固定】に分離
+    const uiPctDec = getVal('usShippingPct') / 100;
+    const fobPrice = selling / (1 + uiPctDec);
+    return { amount: Math.round(fobPrice * 0.35 * rate), isEstimate: true, loading: false };
   }
   return { amount: 0, isEstimate: false, loading: false };
 }
@@ -229,8 +224,8 @@ function buildDutyFeeDetails(shippingLabel, shippingCost, dutyInfo, zonosFeeJpy 
   const details = [{charges: shippingLabel, chargesEn: 'Shipping Rate', freight: shippingCost}];
   if (dutyInfo.amount > 0) {
     if (dutyInfo.isEstimate) {
-      const lblPct = state.currentPricingMode === 'us' ? 35 : getVal('usShippingPct');
-      details.push({charges: `推定関税（税率${lblPct}%概算）`, chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
+      // 誤解を生まないよう「原価35%で計算」と明記
+      details.push({charges: `推定関税（原価35%で計算）`, chargesEn: 'Estimated Duty&Tax', freight: dutyInfo.amount});
     } else {
       const apiDetails = spDutyDetails();
       if (apiDetails.length > 0) {
@@ -246,7 +241,7 @@ function buildDutyFeeDetails(shippingLabel, shippingCost, dutyInfo, zonosFeeJpy 
   return details;
 }
 
-// 【新機能】利益10%＆1000円を担保する限界下限価格（Target Price）を逆算する関数
+// 【Target Price 逆算ロジック】ここがObaraさんの計算式（表42%・裏35%）を再現する心臓部です
 function findTargetSellingPrice(baseCost, m, purchase, grp, ebayRate1, threshold, ebayRate2, perOrder, promotedRate, intlRate, payoneerRate, rate, taxMul, cc, isDDP) {
     if (purchase <= 0 || baseCost === null || baseCost < 0) return null;
     const targetProfitJpy = Math.max(1000, Math.floor(purchase * 0.10));
@@ -268,11 +263,11 @@ function findTargetSellingPrice(baseCost, m, purchase, grp, ebayRate1, threshold
         let zonos = 0;
 
         if (isDDP && cc.code === 'US') {
-            if (state.currentPricingMode === 'us') {
-                duty = Math.round((mid / 1.35) * 0.35 * rate);
-            } else {
-                duty = Math.round((mid / (1 + uiPctDec)) * uiPctDec * rate);
-            }
+            // ① 本体価格を割り出す（入力された送料%を使用）
+            const fobPrice = mid / (1 + uiPctDec);
+            // ② 実際の税関への支払いは、本体価格の【35%固定】
+            duty = Math.round(fobPrice * 0.35 * rate);
+            
             if (m._groupId === 'jppost') zonos = Math.round((2 + ((duty / rate) * 0.10)) * rate);
             actualCost += duty + zonos;
         }
@@ -281,14 +276,13 @@ function findTargetSellingPrice(baseCost, m, purchase, grp, ebayRate1, threshold
 
         if (profit >= targetProfitJpy) {
             best = mid;
-            high = mid; // さらに安く出せないか限界を探る
+            high = mid; 
         } else {
-            low = mid; // 赤字なので価格を上げる
+            low = mid;
         }
     }
     if (!best) return null;
 
-    // 非USモード（アメリカ以外タブ）の場合、UIの入力用としてBase価格に戻してあげる
     let displayTarget = best;
     if (state.currentPricingMode !== 'us' && cc.code === 'US') {
         displayTarget = best / (1 + uiPctDec);
@@ -422,7 +416,7 @@ export function calculate() {
     
     if (!isDDP) {
         if (apiDutyVal > 0) c -= apiDutyVal;
-        baseCost = c; // APIから関税分を抜いた純粋な送料をベースにする
+        baseCost = c;
         if (details) {
             const dutyNames = spDutyDetails().map(d => d.charges);
             details = details.filter(d => !dutyNames.includes(d.charges));
@@ -431,21 +425,16 @@ export function calculate() {
         if (apiDutyVal > 0) c -= apiDutyVal;
         baseCost = c;
         
-        let customDuty = 0;
-        if (state.currentPricingMode === 'us') {
-            const fobPrice = selling / 1.35;
-            customDuty = Math.round(fobPrice * 0.35 * rate);
-        } else {
-            const fobPrice = selling / (1 + uiPctDec);
-            customDuty = Math.round(fobPrice * uiPctDec * rate);
-        }
+        // ① 本体価格の割り出しは入力値を使用
+        const fobPrice = selling / (1 + uiPctDec);
+        // ② 実際の税関コストは【35%固定】
+        const customDuty = Math.round(fobPrice * 0.35 * rate);
         c += customDuty;
         
         if (details) {
             const dutyNames = spDutyDetails().map(d => d.charges);
             details = details.filter(d => !dutyNames.includes(d.charges));
-            const lblPct = state.currentPricingMode === 'us' ? 35 : getVal('usShippingPct');
-            details.push({charges: `推定関税（税率${lblPct}%概算）`, chargesEn: 'Estimated Duty&Tax', freight: customDuty});
+            details.push({charges: `推定関税（原価35%で計算）`, chargesEn: 'Estimated Duty&Tax', freight: customDuty});
         }
     }
     return { c, details, baseCost };
@@ -468,9 +457,9 @@ export function calculate() {
         
         if (isDDP) {
            if (cc.code === 'US' && selling > 0 && rate > 0) {
-              const fobPrice = state.currentPricingMode === 'us' ? selling / 1.35 : selling / (1 + uiPctDec);
-              const appliedPct = state.currentPricingMode === 'us' ? 0.35 : uiPctDec;
-              duty = Math.round(fobPrice * appliedPct * rate);
+              const fobPrice = selling / (1 + uiPctDec);
+              // ここも実費は【35%固定】
+              duty = Math.round(fobPrice * 0.35 * rate);
               dutyEstimate = true;
            } else {
               duty = spDuty();
@@ -483,15 +472,14 @@ export function calculate() {
         ];
         if (duty > 0) {
           if (dutyEstimate) {
-            const lblPct = state.currentPricingMode === 'us' ? 35 : getVal('usShippingPct');
-            details.push({charges: `推定関税（税率${lblPct}%概算）`, chargesEn:'Estimated Duty&Tax', freight:duty});
+            details.push({charges: `推定関税（原価35%で計算）`, chargesEn:'Estimated Duty&Tax', freight:duty});
           } else {
             const dutyItems = spDutyDetails();
             if (dutyItems.length > 0) dutyItems.forEach(d => details.push(d));
             else details.push({charges: '推定関税及び税金料金', chargesEn:'Estimated Duty&Tax', freight:duty});
           }
         }
-        subNote = isDDP ? (dutyEstimate ? `（概算/${state.currentPricingMode==='us'?35:getVal('usShippingPct')}%関税想定）` : '（関税あり）') : '（関税なし）';
+        subNote = isDDP ? (dutyEstimate ? `（概算/実費35%関税想定）` : '（関税あり）') : '（関税なし）';
       }
     }
     const canSend = cs && c !== null && c > 0;
@@ -810,7 +798,6 @@ export function calculate() {
 
   const container = document.getElementById('resultsContainer');
   if(!container) return;
-  // コンテナの内部のみクリア
   container.innerHTML = '';
 
   groups.forEach(g => {
@@ -870,7 +857,6 @@ export function calculate() {
       if (m.reason) tagItems.push(`<span class="method-tag tag-limit">${m.reason}</span>`);
       const tags = tagItems.length ? `<div class="mr-tags">${tagItems.join('')}</div>` : '';
 
-      // 【新機能】UI表示部に「Target Price」を差し込む
       let targetHtml = '';
       if (m.targetPrice && m.canSend && purchase > 0) {
           targetHtml = `<div class="font-bold" style="font-size: 0.75rem; color: #d97706; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e5e7eb;">🎯 利益10%確保の下限価格: $${fmtD(m.targetPrice)}</div>`;
