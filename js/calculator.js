@@ -85,7 +85,8 @@ function updatePricingDisplay() {
     const total = compTotal > 0 ? Math.round((compTotal - 0.01) * 100) / 100 : 0;
     if (total > 0) {
       if (state.currentCountry === 'us') {
-        const itemPrice = Math.round((total / (1 + getUsShippingPctDec())) * 100) / 100;
+        const uiPctDec = getUsShippingPctDec();
+        const itemPrice = Math.round((total / (1 + uiPctDec)) * 100) / 100;
         document.getElementById('listPrice').textContent = '$' + fmtD(itemPrice);
         document.getElementById('listShipping').textContent = '$' + fmtD(Math.round((total - itemPrice) * 100) / 100);
       } else {
@@ -221,7 +222,7 @@ function lookupBracketKg(table, weightGrams) {
 
 function buildDutyDetails(label, cost, duty, zonos = 0) {
   const d = [{charges: label, freight: cost}];
-  if(duty > 0) d.push({charges: '推定関税（原価35%）', freight: duty});
+  if(duty > 0) d.push({charges: '推定関税（原価35%で計算）', freight: duty});
   if(zonos > 0) d.push({charges: 'Zonos手数料 ($2+関税10%)', freight: zonos});
   return d;
 }
@@ -282,13 +283,12 @@ export function calculate() {
       zonosFeeJpy = Math.round((2 + ((usDutyAmount / rate) * 0.10)) * rate);
   }
 
-  // ✅【リクエスト対応】EMS(日本郵便)の配置変更 ＋ eLogiの完全復旧
   const groups = [
     { id: 'fedex',      label: 'FedEx FICP（CPaSS）', methods: [], note: '基本的にはこの配送方法でOK' },
     { id: 'fedex-ip',   label: 'FedEx IP（CPaSS）', methods: [], collapsed: true, note: '早い配送方法。Pakは実重量課金なので軽くて嵩張る荷物は割安' },
     { id: 'jppost',     label: '日本郵便', methods: [], note: cc.jpOk!==false?'CPaSS非対応・自分で発送手続きが必要 (EMSはZonos対応)':(cc.jpZone?'この国は日本郵便の差出が制限されています（△）':'料金テーブル未設定') },
-    { id: 'dhl',        label: 'DHL（CPaSS）', methods: [], note: '安ければ使用OK、基本的にはFedExが安い' },
     { id: 'speedpak',   label: 'Economy（CPaSS）', methods: [], note: cc.economy?'配送が遅いので使用する場合はEconomy用のShipping Policyを作成してください':'この国はEconomy非対応です' },
+    { id: 'dhl',        label: 'DHL（CPaSS）', methods: [], note: '安ければ使用OK、基本的にはFedExが安い' },
     { id: 'elogi-ficp', label: 'eLogi FedEx FICP', methods: [], collapsed: true, note: 'CPaSSと比較用' },
     { id: 'elogi-ip',   label: 'eLogi FedEx IP', methods: [], collapsed: true, note: 'CPaSSと比較用' },
     { id: 'elogi-ie',   label: 'eLogi FedEx IE', methods: [], collapsed: true, note: 'エコノミー。IPより遅いが安い' },
@@ -322,12 +322,11 @@ export function calculate() {
       let details = [{charges:'運送料金', freight:baseRate}];
       if (peak > 0) details.push({charges:'混雑時割増金', freight:peak});
       details.push({charges:'燃料割増金', freight:fuel});
-      if (usDutyAmount > 0) details.push({charges:'推定関税', freight:usDutyAmount});
+      if (usDutyAmount > 0) details.push({charges:'推定関税（原価35%で計算）', freight:usDutyAmount});
       
-      addMethod('fedex',{name:'International Connect Plus', sub:'2-5日/'+_dutyType+'/最大68kg/燃油込', cost: baseRate+peak+fuel+usDutyAmount, canSend:true, feeDetails:details});
+      addMethod('fedex',{name:'International Connect Plus', sub:'2-5日/'+_dutyType+'/最大68kg/体積÷5,000/燃油込', cost: baseRate+peak+fuel+usDutyAmount, canSend:true, feeDetails:details, _baseCost: baseRate+peak+fuel});
     }
     
-    // CPaSS FedEx Pak
     if (weightG <= 2500 && vol <= 15400 && fedexDims[0] <= 52.71 && fedexDims[1] <= 44.45 && (selling <= 0 || selling <= 500)) {
       const pakBase = Rates.lookupRate(ficpTable, weightG);
       if (pakBase > 0) {
@@ -336,9 +335,9 @@ export function calculate() {
         let pakDetails = [{charges:'運送料金', freight:pakBase}];
         if (pakPeak > 0) pakDetails.push({charges:'混雑時割増金', freight:pakPeak});
         pakDetails.push({charges:'燃料割増金', freight:pakFuel});
-        if (usDutyAmount > 0) pakDetails.push({charges:'推定関税', freight:usDutyAmount});
+        if (usDutyAmount > 0) pakDetails.push({charges:'推定関税（原価35%で計算）', freight:usDutyAmount});
         
-        addMethod('fedex',{name:'International Connect Plus（FedEx Pak）', sub:'2-5日/'+_dutyType+'/実重量課金/最大2.5kg/$500以下/燃油込', cost: pakBase+pakPeak+pakFuel+usDutyAmount, canSend:true, feeDetails:pakDetails});
+        addMethod('fedex',{name:'International Connect Plus（FedEx Pak）', sub:'2-5日/'+_dutyType+'/実重量課金/最大2.5kg/$500以下/燃油込', cost: pakBase+pakPeak+pakFuel+usDutyAmount, canSend:true, feeDetails:pakDetails, _baseCost: pakBase+pakPeak+pakFuel});
       }
     }
   }
@@ -354,9 +353,9 @@ export function calculate() {
         let details = [{charges:'運送料金', freight:baseRate}];
         if (peak > 0) details.push({charges:'混雑時割増金', freight:peak});
         details.push({charges:'燃料割増金', freight:fuel});
-        if (usDutyAmount > 0) details.push({charges:'推定関税', freight:usDutyAmount});
+        if (usDutyAmount > 0) details.push({charges:'推定関税（原価35%で計算）', freight:usDutyAmount});
         
-        addMethod('fedex-ip',{name:'FedEx IP Package', sub:'1-3日/'+_dutyType+'/最大68kg/燃油込', cost: baseRate+peak+fuel+usDutyAmount, canSend:true, feeDetails:details});
+        addMethod('fedex-ip',{name:'FedEx IP Package', sub:'1-3日/'+_dutyType+'/最大68kg/燃油込', cost: baseRate+peak+fuel+usDutyAmount, canSend:true, feeDetails:details, _baseCost: baseRate+peak+fuel});
       }
     }
   }
@@ -367,9 +366,9 @@ export function calculate() {
     if (baseRate > 0) {
       const fuel = Math.round(baseRate * fuelSurchargeRate);
       let details = [{charges:'運送料金', freight:baseRate}, {charges:'燃料割増金', freight:fuel}];
-      if(usDutyAmount > 0) details.push({charges:'推定関税', freight:usDutyAmount});
+      if(usDutyAmount > 0) details.push({charges:'推定関税（原価35%で計算）', freight:usDutyAmount});
       
-      addMethod('dhl',{name:'DHL Express', sub:'2-4日/'+_dutyType+'/最大70kg/燃油込', cost: baseRate+fuel+usDutyAmount, canSend:true, feeDetails:details});
+      addMethod('dhl',{name:'DHL Express', sub:'2-4日/'+_dutyType+'/最大70kg/燃油込', cost: baseRate+fuel+usDutyAmount, canSend:true, feeDetails:details, _baseCost: baseRate+fuel});
     }
   }
 
@@ -379,25 +378,25 @@ export function calculate() {
     const ficpD = Rates.getElogiFicpData(eZ);
     if (ficpD && billableStandardG <= 68000 && fxLength <= 274 && fxLpG <= 330) {
       const c = Rates.elogiLookup(ficpD[0], ficpD[1], billableStandardG);
-      if(c > 0) addMethod('elogi-ficp',{name:'eLogi FICP',sub:'2-5日/'+_dutyType+'/最大68kg/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount)});
+      if(c > 0) addMethod('elogi-ficp',{name:'eLogi FICP',sub:'2-5日/'+_dutyType+'/最大68kg/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount), _baseCost: c});
     }
     
     const envRate = Rates.getElogiIpEnvRate(eZ);
     if (envRate > 0 && weightG <= 500 && fedexDims[0] <= 33.5 && fedexDims[1] <= 23.5 && fedexDims[2] <= 3 && (selling <= 0 || selling <= 500)) {
-      addMethod('elogi-ip',{name:'eLogi IP Envelope',sub:'1-3日/'+_dutyType+'/最大500g/$500以下/サーチャージ込',cost:envRate+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',envRate,usDutyAmount)});
+      addMethod('elogi-ip',{name:'eLogi IP Envelope',sub:'1-3日/'+_dutyType+'/最大500g/$500以下/サーチャージ込',cost:envRate+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',envRate,usDutyAmount), _baseCost: envRate});
     }
     
     const pakTable = Rates.getElogiIpPakTable(eZ);
     const pakBillableG = (vol > 15400) ? Math.max(weightG, volWeight*1000) : weightG;
     if (pakTable && weightG <= 2500 && pakBillableG <= 2500 && fedexDims[0] <= 52.71 && fedexDims[1] <= 44.45 && (selling <= 0 || selling <= 500)) {
       const cPak = Rates.lookupRate(pakTable, pakBillableG);
-      if (cPak > 0) addMethod('elogi-ip',{name:'eLogi IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/44.45×52.71cm/サーチャージ込',cost:cPak+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',cPak,usDutyAmount)});
+      if (cPak > 0) addMethod('elogi-ip',{name:'eLogi IP Pak',sub:'1-3日/'+_dutyType+'/最大2.5kg/44.45×52.71cm/サーチャージ込',cost:cPak+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',cPak,usDutyAmount), _baseCost: cPak});
     }
 
     const pkgD = Rates.getElogiIpPkgData(eZ);
     if (pkgD && billableStandardG <= 68000 && fxLength <= 274 && fxLpG <= 330) {
       const c = Rates.elogiLookup(pkgD[0], pkgD[1], billableStandardG);
-      if (c > 0) addMethod('elogi-ip',{name:'eLogi IP Package',sub:'1-3日/'+_dutyType+'/最大68kg/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount)});
+      if (c > 0) addMethod('elogi-ip',{name:'eLogi IP Package',sub:'1-3日/'+_dutyType+'/最大68kg/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount), _baseCost: c});
     }
   }
 
@@ -406,7 +405,7 @@ export function calculate() {
     const ieD = Rates.getElogiIeData(eZ);
     if (ieD && billableStandardG <= 68000 && fxLength <= 274 && fxLpG <= 330) {
       const c = Rates.elogiLookup(ieD[0], ieD[1], billableStandardG);
-      if(c > 0) addMethod('elogi-ie',{name:'eLogi IE',sub:'4-6日/'+_dutyType+'/最大68kg/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount)});
+      if(c > 0) addMethod('elogi-ie',{name:'eLogi IE',sub:'4-6日/'+_dutyType+'/最大68kg/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount), _baseCost: c});
     }
   }
 
@@ -415,7 +414,7 @@ export function calculate() {
     const dhlD = Rates.getElogiDhlData(cc.elogiDhlZone);
     if (dhlD && billableStandardG <= 30000) {
       const c = Rates.elogiLookup(dhlD[0], dhlD[1], billableStandardG);
-      if(c > 0) addMethod('elogi-dhl',{name:'eLogi DHL Express',sub:'2-4日/'+_dutyType+'/最大30kg/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount)});
+      if(c > 0) addMethod('elogi-dhl',{name:'eLogi DHL Express',sub:'2-4日/'+_dutyType+'/最大30kg/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount), _baseCost: c});
     }
   }
 
@@ -424,7 +423,7 @@ export function calculate() {
     const upsD = Rates.getElogiUpsData(cc.upsZone);
     if (upsD) {
       const c = Rates.elogiLookup(upsD[0], upsD[1], billableStandardG);
-      if (c > 0) addMethod('elogi-ups',{name:'UPS Express Saver',sub:'2-5日/'+_dutyType+'/体積÷5,000/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount)});
+      if (c > 0) addMethod('elogi-ups',{name:'UPS Express Saver',sub:'2-5日/'+_dutyType+'/体積÷5,000/サーチャージ込',cost:c+usDutyAmount,canSend:true,feeDetails:buildDutyDetails('配送料（燃油込）',c,usDutyAmount), _baseCost: c});
     }
   }
 
@@ -434,13 +433,13 @@ export function calculate() {
     const eplTable = Rates.getEpacketLightTable(cc.jpZone || 4);
     if (eplTable && weightG <= 2000 && fedexDims[0] <= 60 && (fedexDims[0]+fedexDims[1]+fedexDims[2]) <= 90 && fedexDims[2] >= 10.5) {
       const c = Rates.lookupRate(eplTable, weightG);
-      if (c > 0) addMethod('jppost',{name:'eパケットライト',sub:`第${cc.jpZone||4}地帯/追跡あり/最大2kg/実重量`,cost:c+usDutyAmount+zonosFeeJpy,canSend:true,feeDetails:buildDutyDetails('配送料',c,usDutyAmount,zonosFeeJpy)});
+      if (c > 0) addMethod('jppost',{name:'eパケットライト',sub:`第${cc.jpZone||4}地帯/追跡あり/最大2kg/実重量`,cost:c+usDutyAmount+zonosFeeJpy,canSend:true,feeDetails:buildDutyDetails('配送料',c,usDutyAmount,zonosFeeJpy), _baseCost: c});
     }
     const emsTable = Rates.getEmsTable(cc.jpZone || 4);
     if (emsTable && weightG <= 30000 && fedexDims[0] <= 150 && (fedexDims[0]+fedexDims[1]+fedexDims[2]) <= 300) {
       const c = Rates.lookupRate(emsTable, weightG);
       const zonosDdpLabel = (isDDP && cc.code === 'US') ? ' (Zonos DDP)' : '';
-      if (c > 0) addMethod('jppost',{name:'EMS',sub:`第${cc.jpZone||4}地帯/最速/最大30kg/実重量${zonosDdpLabel}`,cost:c+usDutyAmount+zonosFeeJpy,canSend:true,feeDetails:buildDutyDetails('配送料',c,usDutyAmount,zonosFeeJpy)});
+      if (c > 0) addMethod('jppost',{name:'EMS',sub:`第${cc.jpZone||4}地帯/最速/最大30kg/実重量${zonosDdpLabel}`,cost:c+usDutyAmount+zonosFeeJpy,canSend:true,feeDetails:buildDutyDetails('配送料',c,usDutyAmount,zonosFeeJpy), _baseCost: c});
     }
   }
 
@@ -453,7 +452,11 @@ export function calculate() {
         m.profit = Math.round(netReceived - purchase - m.cost);
         m.profitWithRefund = Math.round(m.profit + totalRefund);
         m.profitRate = purchase > 0 ? (m.profit / purchase * 100) : 0;
-        m.isOk = m.profit >= 1000 && m.profit >= (purchase * 0.1);
+        
+        const pThEl = document.getElementById('profitThreshold');
+        const prThEl = document.getElementById('profitRateThreshold');
+        const targetProfit = Math.max(pThEl ? parseFloat(pThEl.value) || 0 : 1000, purchase * ((prThEl ? parseFloat(prThEl.value) || 0 : 10) / 100));
+        m.isOk = m.profit >= targetProfit;
       }
       allMethods.push(m);
     });
@@ -465,12 +468,75 @@ export function calculate() {
     if (m.canSend && m.profit !== null && m.profit > bestProfit) { bestProfit = m.profit; bestMethod = m; }
   });
 
+  // ✅ USの無限関税増殖バグを修正した、正しい下限価格逆算ロジック
+  function calcBottomPrice(m) {
+    if (!m._baseCost || m._baseCost <= 0) return null;
+    const pThEl = document.getElementById('profitThreshold');
+    const prThEl = document.getElementById('profitRateThreshold');
+    const tVal = pThEl ? parseFloat(pThEl.value) || 0 : 1000;
+    const tPct = prThEl ? parseFloat(prThEl.value) || 0 : 10;
+    const targetProfit = Math.max(tVal, purchase * (tPct / 100));
+
+    let low = 1.00;
+    let high = 15000.00;
+    let best = null;
+
+    // 現在の入力されている売値（selling）に基づく固定のUS関税を計算
+    // ※ここで仮の売値(mid)を使って関税を毎回再計算すると、無限に送料が膨れ上がるバグになるため固定化
+    let fixedUsDuty = 0;
+    let fixedZonos = 0;
+    if (isDDP && cc.code === 'US') {
+       if (selling > 0 && rate > 0) {
+           const fobPrice = selling / (1 + getUsShippingPctDec());
+           fixedUsDuty = Math.round(fobPrice * 0.35 * rate);
+           if (m._groupId === 'jppost') {
+               fixedZonos = Math.round((2 + ((fixedUsDuty / rate) * 0.10)) * rate);
+           }
+       }
+    }
+
+    const remoteFee = getRemoteAreaFeeYen(m._groupId);
+
+    for (let i = 0; i < 25; i++) {
+        let mid = (low + high) / 2;
+        let fvfResult = calcFVFBase(mid, grp, getVal('ebayFeeRate')/100, getVal('feeThreshold'), getVal('ebayFeeRate2')/100, getVal('perOrderFee'));
+        let ebayFvf = (fvfResult.fvfBase + fvfResult.effectivePerOrder) * taxMul;
+        let deductions = ebayFvf + (mid * (getVal('promotedRate')/100) * taxMul) + (mid * (getVal('intlFeeRate')/100) * taxMul);
+        let netReceivedSim = (mid - deductions) * (1 - getVal('payoneerRate')/100) * rate;
+
+        let actualCost = m._baseCost + remoteFee + fixedUsDuty + fixedZonos;
+
+        let displayTarget = mid;
+        if (state.currentPricingMode !== 'us' && cc.code === 'US') {
+            displayTarget = mid / (1 + getUsShippingPctDec());
+        }
+        const euDuty = getEuDutyYen(m._groupId, cc.code, displayTarget, rate);
+        if (euDuty > 0) actualCost += euDuty;
+
+        let simProfit = Math.round(netReceivedSim - purchase - actualCost);
+
+        if (simProfit >= targetProfit) {
+            best = mid;
+            high = mid; 
+        } else {
+            low = mid;
+        }
+    }
+
+    if (!best) return null;
+
+    let finalDisplayTarget = best;
+    if (state.currentPricingMode !== 'us' && cc.code === 'US') {
+        finalDisplayTarget = best / (1 + getUsShippingPctDec());
+    }
+    return Math.ceil(finalDisplayTarget * 100) / 100;
+  }
+
   const container = document.getElementById('resultsContainer');
   if(!container) return;
   container.innerHTML = '';
 
   groups.forEach(g => {
-    // ✅ 空のグループ（料金データが無い配送手段）はスッキリ非表示にする
     if(g.methods.length === 0) return;
 
     const section = document.createElement('div');
@@ -488,6 +554,17 @@ export function calculate() {
       const cls = (m.isOk && m.cost > 0) ? 'method-row usable' : 'method-row dimmed';
       
       let right = `<div class="mr-na">${m.reason || '発送不可'}</div>`;
+      let bottomPriceHtml = '';
+
+      const tagItems = [];
+      if (isBest) tagItems.push('<span class="method-tag tag-recommend">最安・推奨</span>');
+      if (m.isOk) tagItems.push('<span class="method-tag tag-ok">利益OK</span>');
+      if (m.sub && m.sub.includes('DDP')) tagItems.push('<span class="method-tag tag-ddp">DDP</span>');
+      if (g.tag === '速達') tagItems.push('<span class="method-tag tag-fast">速達</span>');
+      if (g.tag === '非対応') tagItems.push('<span class="method-tag tag-ng">非対応</span>');
+      if (m.reason) tagItems.push(`<span class="method-tag tag-limit">${m.reason}</span>`);
+      const tags = tagItems.length ? `<div class="mr-tags">${tagItems.join('')}</div>` : '';
+
       if (m.cost > 0) {
         const pCls = m.profit < 0 ? 'val val-neg' : 'val val-profit';
         const rCls = m.profitWithRefund < 0 ? 'val val-neg' : 'val val-refund';
@@ -497,13 +574,36 @@ export function calculate() {
 
         right = `<div class="mr-right">
           <span class="lbl">送料 <button class="fee-detail-btn" onclick="event.stopPropagation();const p=this.closest('.mr-right').nextElementSibling;p.classList.toggle('u-hidden');">明細</button></span><span class="val val-cost">¥${fmt(m.cost)}</span>
-          <span class="lbl">利益</span><span class="${pCls}">¥${fmt(m.profit)}</span>
-          <span class="lbl">还付込</span><span class="${rCls}">¥${fmt(m.profitWithRefund)}</span>
+          <span class="lbl">利益</span><span class="${pCls}">${m.profit < 0 ? '⚠ ' : ''}¥${fmt(m.profit)}</span>
+          <span class="lbl">還付込</span><span class="${rCls}">${m.profitWithRefund < 0 ? '⚠ ' : ''}¥${fmt(m.profitWithRefund)}</span>
         </div>${popup}`;
+
+        // ✅ 左下に表示する下限価格を生成（過去コードのままのスタイル）
+        const bottomUsd = calcBottomPrice(m);
+        if (bottomUsd !== null && purchase > 0) {
+          const prThEl = document.getElementById('profitRateThreshold');
+          const tPct = prThEl ? prThEl.value : '10';
+          let dispPrice = bottomUsd;
+          if (state.currentPricingMode === 'us') {
+            const compShip = getCompShippingUsd();
+            dispPrice = Math.max(0, bottomUsd - compShip);
+          }
+          // 指定された通りのCSSクラスとスタイルで生成
+          bottomPriceHtml = `<div class="font-bold" style="font-size: 0.75rem; color: #d97706; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e5e7eb;">🎯 利益${tPct}%確保の下限価格: $${fmtD(dispPrice)}</div>`;
+        }
       }
 
-      const tags = (isBest ? '<span class="method-tag tag-recommend">最安・推奨</span>' : '') + (m.isOk ? '<span class="method-tag tag-ok">利益OK</span>' : '');
-      grid.innerHTML += `<div class="${cls}"><div class="mr-left"><div class="mr-name">${m.name}</div><div class="mr-sub">${m.sub}</div><div class="mr-tags">${tags}</div></div>${right}</div>`;
+      // ✅ mr-left の内側の一番下に bottomPriceHtml を配置（画像のご指定通り）
+      grid.innerHTML += `
+        <div class="${cls}">
+          <div class="mr-left">
+            <div class="mr-name">${m.name}</div>
+            <div class="mr-sub">${m.sub}</div>
+            ${tags}
+            ${bottomPriceHtml}
+          </div>
+          ${right}
+        </div>`;
     });
 
     section.appendChild(grid);
@@ -523,4 +623,8 @@ export function calculate() {
     if(summaryBar) summaryBar.classList.add('negative');
     if(bestNameEl) bestNameEl.textContent = '-';
   }
+
+  // 古い大きなオレンジ枠がHTML上に残っていれば非表示にする
+  const oldBottomPriceEl = document.getElementById('bottomPriceIndicator');
+  if (oldBottomPriceEl) oldBottomPriceEl.style.display = 'none';
 }
