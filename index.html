@@ -147,7 +147,7 @@
         <div class="l-flex-align-end u-mb-6">
           <div class="field u-w-100">
             <label>🇺🇸送料 <span class="unit">(%)</span></label>
-            <input type="text" inputmode="decimal" id="usShippingPct" value="20" class="highlight">
+            <input type="text" inputmode="decimal" id="usShippingPct" value="42" class="highlight">
           </div>
           <div class="price-box-warn-min">
             <div class="price-box-label-warn">🇺🇸送料参考額</div>
@@ -166,6 +166,14 @@
         <span>体積重量(÷5000): <strong id="volWeight" class="text2-strong">0.000 kg</strong></span>
         <span>Economy(÷8000): <strong id="volWeightEco" class="text2-strong">0.000 kg</strong></span>
       </div>
+      
+      <!-- 遠隔地あてチェックボックス -->
+      <label class="ship-remote-row">
+        <input type="checkbox" id="shipRemote">
+        <span>遠隔地あて（地域外配達料を足す）</span>
+      </label>
+      <div class="ship-value-hint">届け先が離島・郊外などの遠隔地だと、実際の請求には地域外配達料が付きます（CPaSSの見積もりAPIは住所を見ないので出てきません）。</div>
+      
     </div>
 
     <div class="card">
@@ -207,6 +215,35 @@
           SpeedPAK APIから自動取得<br><span id="fuelStatus" class="tool-desc">-</span>
           <button id="btnFetchFuel" class="btn-manual-fetch">手動取得</button>
         </div>
+      </div>
+      
+      <!-- 出品OK表示の基準（非表示にして裏側で固定値を使用してもOKですが、念のため配置） -->
+      <div class="eu-duty-panel" style="background:#f0f7ff; border-color:#bfdbfe; display: none;">
+        <div class="eu-duty-title" style="color:var(--text1)">📊 出品OK表示の基準</div>
+        <div class="l-flex-align-center">
+          <span class="unit">利益 ¥</span>
+          <input type="number" id="profitThreshold" value="1000" min="0" step="100" class="eu-duty-input">
+          <span class="unit">以上</span>
+          <span class="unit" style="margin:0 2px">かつ</span>
+          <span class="unit">利益率</span>
+          <input type="number" id="profitRateThreshold" value="10" min="0" step="0.5" class="eu-duty-input" style="width:55px;">
+          <span class="unit">% 以上</span>
+        </div>
+      </div>
+      
+      <!-- EU関税パネル -->
+      <div class="eu-duty-panel">
+        <div class="eu-duty-title">🇪🇺 EU関税（ヨーロッパ宛・150ユーロ以下）</div>
+        <div class="l-flex-align-center">
+          <span class="unit">eLogiの立替手数料 €</span>
+          <input type="number" id="euDisbursementFee" value="12" min="0" step="1" class="eu-duty-input">
+          <span class="ship-value-hint">（クーリエ・国により€12〜21）</span>
+        </div>
+        <label class="ship-remote-row" style="margin-top: 6px; align-items: flex-start; line-height: 1.35; font-weight: normal;">
+          <input type="checkbox" id="euFedexCardWaiver" style="margin-top: 1px;">
+          <span>FedExの関税クレカ自動引き落としを設定済み（eLogi FedEx系の立替手数料を0にする）</span>
+        </label>
+        <div class="ship-value-hint u-mt-4">※2026/7/1〜、EU宛の150ユーロ以下は関税€3/内容品（45ユーロ未満でも課税）。CPaSSは€3＋2.1%を自動加算、eLogiは€3＋上記の立替手数料。イギリスは対象外。</div>
       </div>
       
       <button class="toggle-btn" id="settingsToggle">詳細設定 ▼</button>
@@ -276,7 +313,16 @@
     <div class="card">
       <h2><span class="icon">🚚</span> 配送方法別 利益比較</h2>
       <div class="u-mb-10">
-        <select id="destCountry" class="country-select"></select>
+        <div class="cpick" id="countryPicker">
+          <button type="button" class="cpick-btn" id="countryBtn" aria-haspopup="listbox" aria-expanded="false">
+            <span id="countryBtnLabel">🇺🇸 アメリカ</span><span class="cpick-caret">▼</span>
+          </button>
+          <div class="cpick-panel" id="countryPanel" hidden>
+            <input type="text" id="countrySearch" class="cpick-search" placeholder="🔍 国名で検索（例: フランス / FR）" autocomplete="off">
+            <div class="cpick-list" id="countryList"></div>
+          </div>
+          <select id="destCountry" class="country-select" style="display:none"></select>
+        </div>
       </div>
       <div id="resultsContainer"></div>
     </div>

@@ -1,8 +1,10 @@
 import { state } from './state.js';
 import { saveState, restoreState, getVal } from './utils.js';
-import { SHOP_SITES, KW_LIST, COUNTRIES } from './config.js';
-import { initExchangeRate, initFuelSurcharge, fetchRate, fetchFuelSurcharge, fetchSpeedpakRates } from './api.js';
+import { SHOP_SITES, KW_LIST, COUNTRIES } from './config.js'; // ← ここを修正しました
+import { initExchangeRate, fetchRate } from './api.js';
 import { calculate } from './calculator.js';
+
+let _cpickShowAll = false;
 
 // ===== 初期化処理 =====
 function init() {
@@ -17,13 +19,14 @@ function init() {
     const validIds = COUNTRIES.map(c => c.id);
     if (!validIds.includes(sel.value)) sel.value = 'us';
     state.currentCountry = sel.value;
+    const cData = COUNTRIES.find(c => c.id === sel.value);
+    if (cData && document.getElementById('countryBtnLabel')) {
+      document.getElementById('countryBtnLabel').textContent = cData.name;
+    }
   }
 
   updateModeUI();
-
   initExchangeRate(() => calculateWrapper());
-  initFuelSurcharge(() => calculateWrapper());
-  fetchSpeedpakRates(() => calculateWrapper());
 }
 
 // ===== 状態保存＆計算ラッパー =====
@@ -38,9 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 全Input変更時
   document.querySelectorAll('input').forEach(el => {
+    // 検索窓での入力を計算発火から除外
+    if(el.id === 'countrySearch' || el.id === 'shopQuery') return;
     el.addEventListener('input', () => {
       calculateWrapper();
-      debouncedFetchSpeedpak();
     });
   });
 
@@ -48,9 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (destCountryEl) {
     destCountryEl.addEventListener('change', (e) => {
       state.currentCountry = e.target.value;
-      state.speedpakRates = null; 
       calculateWrapper();
-      fetchSpeedpakRates(() => calculateWrapper());
     });
   }
 
@@ -79,7 +81,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnFetchRate = document.getElementById('btnFetchRate');
   const btnFetchFuel = document.getElementById('btnFetchFuel');
   if (btnFetchRate) btnFetchRate.addEventListener('click', () => fetchRate(false, calculateWrapper));
-  if (btnFetchFuel) btnFetchFuel.addEventListener('click', () => fetchFuelSurcharge(false, calculateWrapper));
+  
+  // API廃止に伴い手動入力を案内
+  if (btnFetchFuel) {
+    btnFetchFuel.addEventListener('click', () => {
+      alert('燃油サーチャージは手動入力になりました。現在の数値を直接入力してください。');
+      calculateWrapper();
+    });
+  }
 
   const btnRollKw = document.getElementById('btnRollKw');
   const btnShopSearch = document.getElementById('btnShopSearch');
@@ -156,6 +165,100 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// ===== 宛先セレクタ（検索付き） =====
+function cpickNorm(s) {
+  return (s || '').toLowerCase()
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
+    .replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60))
+    .replace(/\s+/g, '');
+}
+
+function renderCountryList() {
+  const list = document.getElementById('countryList');
+  const sel = document.getElementById('destCountry');
+  const searchInput = document.getElementById('countrySearch');
+  if (!list || !sel || !searchInput) return;
+  
+  const q = cpickNorm(searchInput.value);
+  list.innerHTML = '';
+  
+  const mkRow = (c) => {
+    const row = document.createElement('div');
+    row.className = 'cpick-row' + (c.id === sel.value ? ' selected' : '');
+    row.dataset.id = c.id;
+    row.textContent = c.name;
+    row.onclick = () => {
+      sel.value = c.id;
+      sel.dispatchEvent(new Event('change'));
+      document.getElementById('countryBtnLabel').textContent = c.name;
+      document.getElementById('countryPanel').hidden = true;
+    };
+    return row;
+  };
+  const mkHead = (t) => { const h = document.createElement('div'); h.className = 'cpick-head'; h.textContent = t; return h; };
+
+  if (q) {
+    const hits = COUNTRIES.filter(c => cpickNorm(c.name + c.code + c.id).includes(q));
+    if (!hits.length) {
+      list.innerHTML = '<div class="cpick-empty">該当する国がありません</div>';
+    } else {
+      hits.forEach(c => list.appendChild(mkRow(c)));
+    }
+    return;
+  }
+  
+  if (_cpickShowAll) {
+    let g = null;
+    COUNTRIES.forEach(c => { if (c.group !== g) { list.appendChild(mkHead(c.group)); g = c.group; } list.appendChild(mkRow(c)); });
+    return;
+  }
+  
+  list.appendChild(mkHead('主要な宛先'));
+  ['us','ca','uk','de','au','cn'].forEach(id => { const c = COUNTRIES.find(x => x.id === id); if (c) list.appendChild(mkRow(c)); });
+  const more = document.createElement('button');
+  more.type = 'button'; more.className = 'cpick-more';
+  more.textContent = 'すべての国を表示（' + COUNTRIES.length + 'ヶ国）';
+  more.onclick = (e) => { e.stopPropagation(); _cpickShowAll = true; renderCountryList(); };
+  list.appendChild(more);
+}
+
+function initCountrySelector() {
+  const sel = document.getElementById('destCountry');
+  if (!sel) return;
+  sel.innerHTML = '';
+  COUNTRIES.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+  
+  const btn = document.getElementById('countryBtn');
+  const panel = document.getElementById('countryPanel');
+  const search = document.getElementById('countrySearch');
+  
+  if(btn && panel && search) {
+    btn.addEventListener('click', () => {
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) {
+        search.value = '';
+        _cpickShowAll = false;
+        renderCountryList();
+        search.focus();
+      }
+    });
+    
+    search.addEventListener('input', renderCountryList);
+    
+    document.addEventListener('click', (e) => {
+      const picker = document.getElementById('countryPicker');
+      if (picker && !picker.contains(e.target)) {
+        panel.hidden = true;
+      }
+    });
+  }
+}
+
 // ===== UI・状態変更機能群 =====
 function setPricingMode(mode) {
   state.currentPricingMode = mode;
@@ -199,26 +302,6 @@ function updateModeUI() {
   const planStoreBtn = document.getElementById('planStore');
   if (planNoStoreBtn) planNoStoreBtn.classList.toggle('active', state.currentStorePlan === 'noStore');
   if (planStoreBtn) planStoreBtn.classList.toggle('active', state.currentStorePlan === 'store');
-}
-
-let _speedpakDebounceTimer = null;
-function debouncedFetchSpeedpak() {
-  if (_speedpakDebounceTimer) clearTimeout(_speedpakDebounceTimer);
-  _speedpakDebounceTimer = setTimeout(() => {
-    fetchSpeedpakRates(() => calculateWrapper());
-  }, 500);
-}
-
-function initCountrySelector() {
-  const sel = document.getElementById('destCountry');
-  if (!sel) return;
-  COUNTRIES.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.name;
-    sel.appendChild(opt);
-  });
-  sel.value = 'us';
 }
 
 export function rollKw() {
@@ -328,7 +411,6 @@ async function autoDeterminePricing() {
     await new Promise(resolve => setTimeout(resolve, 50)); 
   };
 
-  // 1〜3番手を取得（送料ぼったくりフィルター撤廃済）
   const candidates = [];
   for (let i = 1; i <= 3; i++) {
     const p = getVal('comp' + i + 'Price');
@@ -338,7 +420,6 @@ async function autoDeterminePricing() {
     }
   }
 
-  // ベンチマーク(4番手)の確定
   const bmPrice = getVal('comp4Price');
   const bmShip = getVal('comp4Ship');
   let benchmark = null;
@@ -360,11 +441,9 @@ async function autoDeterminePricing() {
   await updateMsg('⏳ システムが利益条件を満たす最安値を探索しています...', '#ea580c');
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // 「ベンチマークより高い候補」を除外し、有効なターゲットリストを作成（絶対上限ルール）
   let validTargets = candidates.filter(c => c.total <= benchmark.total);
   validTargets.push(benchmark);
 
-  // 重複排除（例: ベンチマークが1番手から選ばれた場合や、同じ価格のセラーがいた場合）
   const uniqueTargets = [];
   const seenIds = new Set();
   for (const t of validTargets) {
@@ -374,10 +453,8 @@ async function autoDeterminePricing() {
     }
   }
 
-  // 「Total（本体＋送料）が安い順」に並び替え
   uniqueTargets.sort((a, b) => a.total - b.total);
 
-  // 利益条件（1000円＆10%以上）を満たしているかチェックする関数
   const checkProfitability = () => {
     const names = document.querySelectorAll('.mr-name');
     for (const nameEl of names) {
@@ -391,90 +468,81 @@ async function autoDeterminePricing() {
   };
 
   let adoptedTarget = null;
-  let adoptedType = ''; // 'us' or 'other'
+  let adoptedType = ''; 
   let adoptedUsPrice = 0;
   let adoptedOtherPrice = 0;
 
-  // ==========================================
-  // STEP 1: アメリカ向け(US)の探索ループ（最安値から順に検証）
-  // ==========================================
   setPricingMode('us'); 
   if (countryEl) await updateInput(countryEl, 'us');
 
   for (const target of uniqueTargets) {
-    // アメリカ向け：Total価格から一律 $0.10 下げる
     const targetUsTotal = Math.round((target.total - 0.10) * 100) / 100;
     const targetUsPrice = Math.max(0, Math.round((targetUsTotal - target.ship) * 100) / 100);
 
     await updateInput(sellEl, targetUsPrice);
     await updateInput(compShipEl, target.ship);
 
-    await fetchSpeedpakRates();
     calculate();
 
     if (checkProfitability()) {
       adoptedTarget = target;
       adoptedType = 'us';
       adoptedUsPrice = targetUsPrice;
-      break; // 利益条件を満たす最安値が見つかった瞬間にループを抜ける！
+      break; 
     }
   }
 
-  // ==========================================
-  // STEP 2: 他国向け(Other)の探索ループ（USで全滅した場合）
-  // ==========================================
   if (!adoptedTarget) {
     setPricingMode('other'); 
-    if (countryEl) await updateInput(countryEl, 'eu');
+    if (countryEl) {
+      await updateInput(countryEl, 'de');
+      document.getElementById('countryBtnLabel').textContent = '🇩🇪 ドイツ';
+    }
 
     for (const target of uniqueTargets) {
-      // 他国向け：本体価格から一律 $0.10 下げる
       const targetOtherPrice = Math.max(0, Math.round((target.price - 0.10) * 100) / 100);
 
       await updateInput(sellEl, targetOtherPrice);
       await updateInput(compShipEl, 0); 
 
-      await fetchSpeedpakRates();
       calculate();
 
       if (checkProfitability()) {
         adoptedTarget = target;
         adoptedType = 'other';
         adoptedOtherPrice = targetOtherPrice;
-        break; // 利益条件を満たす最安値が見つかった瞬間にループを抜ける！
+        break; 
       }
     }
   }
 
-  // ==========================================
-  // STEP 3: 結果の反映とメッセージ出力
-  // ==========================================
   if (adoptedTarget) {
     if (adoptedType === 'us') {
-      // USで合格した場合、状態をUSに戻す（Otherループ等で書き換わっている可能性があるため）
       setPricingMode('us');
-      if (countryEl) await updateInput(countryEl, 'us');
+      if (countryEl) {
+        await updateInput(countryEl, 'us');
+        document.getElementById('countryBtnLabel').textContent = '🇺🇸 アメリカ';
+      }
       await updateInput(sellEl, adoptedUsPrice);
       await updateInput(compShipEl, adoptedTarget.ship);
-      await fetchSpeedpakRates();
       calculate();
 
       benchEl.textContent = `本体 $${adoptedUsPrice.toFixed(2)} + 送料 $${adoptedTarget.ship.toFixed(2)}`;
       await updateMsg('【出品OK】アメリカ向け(US)でベンチマークより安く出品可能です！', '#16a34a');
     } else {
-      // Otherで合格した場合
       setPricingMode('other');
-      if (countryEl) await updateInput(countryEl, 'eu');
+      if (countryEl) {
+        await updateInput(countryEl, 'de');
+        document.getElementById('countryBtnLabel').textContent = '🇩🇪 ドイツ';
+      }
       await updateInput(sellEl, adoptedOtherPrice);
       await updateInput(compShipEl, 0);
-      await fetchSpeedpakRates();
       calculate();
 
       benchEl.textContent = `本体 $${adoptedOtherPrice.toFixed(2)} + 送料(自動計算)`;
       await updateMsg('【出品OK】他国向け(Other)ならベンチマークより安く出品可能です！', '#2563eb');
     }
   } else {
-    // どの候補（ベンチマーク含む）でも利益条件を達成できなかった場合
     if (benchEl) benchEl.textContent = `利益基準(1000円/10%)未達`;
     await updateMsg('【出品NG】ベンチマークより安く出品すると利益基準を満たせません。', '#dc2626');
   }
